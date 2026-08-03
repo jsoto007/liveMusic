@@ -1,0 +1,21 @@
+LIVE MSC — A listings paper for live music
+
+YOU SAID YOU'RE GOING
+
+{{ event.headline }}
+{{ event.day_label }}, {{ event.date_long }}
+
+--------------------------------------------------------------------
+{% if event.venue %}VENUE       {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}
+{% endif %}{% if event.doors_label %}DOORS       {{ event.doors_label }}
+{% endif %}FIRST SET   {{ event.time_label or "—" }}
+DOOR PRICE  {{ event.price_label or "Not stated" }}
+AGES        {{ event.age_label }}
+--------------------------------------------------------------------
+
+Open the listing:
+{{ event_url }}
+
+--
+You get this because you marked yourself going.
+Unsubscribe: {{ unsubscribe_url }}

@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="./_ds/classical-016de205-3f61-489e-908c-27140bcf87e8/styles.css">
+<script src="./image-slot.js"></script>
+<style>
+  body { margin: 0; background: var(--color-neutral-200); }
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: var(--color-accent-600); }
+  *::-webkit-scrollbar { width: 0; height: 0; }
+  input, textarea, select, button { font-family: var(--font-body); }
+  @keyframes eqBar { 0%, 100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: var(--color-neutral-200); padding: 44px 40px 72px; font-family: var(--font-body); color: var(--color-text)">
+
+  <div style="max-width: 1120px; margin: 0 auto">
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-6)">
+      <div style="font-family: var(--font-heading); font-weight: 400; font-size: 52px; line-height: 1; letter-spacing: 0.01em">The Bill</div>
+      <div style="font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 52%, transparent); text-align: right; font-variant-numeric: tabular-nums">Tue 28 July 2026 &nbsp;·&nbsp; No. 214</div>
+    </div>
+    <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-6); margin-top: 10px">
+      <div style="font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 58%, transparent)">A listings paper for live music in <span style="color: var(--color-accent-700)">{{ city }}</span></div>
+      <div style="font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 52%, transparent)">Prototype — tap through the phone</div>
+    </div>
+    <div style="height: 1px; background: var(--color-divider); margin-top: 14px"></div>
+    <div style="height: 3px"></div>
+    <div style="height: 1px; background: var(--color-divider)"></div>
+  </div>
+
+  <div style="max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: 250px 402px; gap: 72px; justify-content: center; align-items: start; padding-top: 40px">
+
+    <aside style="position: sticky; top: 44px">
+      <h6 style="margin: 0 0 var(--space-3); color: color-mix(in srgb, var(--color-text) 55%, transparent)">Contents</h6>
+      <div style="display: flex; flex-direction: column">
+        <sc-for list="{{ contents }}" as="c" hint-placeholder-count="8">
+          <button type="button" onClick="{{ c.go }}" style="display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 9px 0; cursor: pointer; font-family: var(--font-heading); font-size: 16px; color: {{ c.color }}" style-hover="color: var(--color-accent)">
+            <span style="font-size: 11px; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: color-mix(in srgb, var(--color-text) 42%, transparent)">{{ c.num }}</span>
+            <span>{{ c.label }}</span>
+          </button>
+        </sc-for>
+      </div>
+      <p style="margin: var(--space-6) 0 0; font-size: 12px; line-height: 1.7; text-align: justify; hyphens: auto; color: color-mix(in srgb, var(--color-text) 62%, transparent)">Built for the people on the bill. A band posts a show in three fields and it prints to tonight&rsquo;s listings; everyone else reads the paper, marks what they&rsquo;re going to, and finds the room.</p>
+      <div class="hr"></div>
+      <div style="font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 42%, transparent)">Set in Cormorant &amp; Lora</div>
+    </aside>
+
+    <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+      <div style="min-height: 100%; display: flex; flex-direction: column; background: var(--color-bg)">
+
+        <!-- ══ HOME ══ -->
+        <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+        <div data-screen-label="01 The Bill" style="display: flex; flex-direction: column; flex: 1">
+          <header style="position: sticky; top: 0; z-index: 6; background: var(--color-bg); padding: 66px 20px 0">
+            <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3)">
+              <div>
+                <div style="font-family: var(--font-heading); font-size: 30px; line-height: 1; letter-spacing: 0.01em">The Bill</div>
+                <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 6px">{{ city }} &nbsp;·&nbsp; Tue 28 July</div>
+              </div>
+              <div style="display: flex; gap: 4px">
+                <button type="button" class="btn btn-icon btn-ghost" onClick="{{ goSearch }}" aria-label="Search">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+                </button>
+                <button type="button" class="btn btn-icon btn-ghost" aria-label="Notices">
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path></svg>
+                </button>
+              </div>
+            </div>
+            <div style="height: 1px; background: var(--color-divider); margin-top: 14px"></div>
+            <div style="display: flex; gap: 6px; padding: 12px 0 12px; overflow-x: auto">
+              <sc-for list="{{ dayTabs }}" as="d" hint-placeholder-count="4">
+                <label class="seg-opt" style="border: 1px solid var(--color-divider); border-radius: var(--radius-md); flex: none; padding: 6px 13px; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase">
+                  <input type="radio" name="dayfilter" checked="{{ d.on }}" onChange="{{ d.pick }}">
+                  {{ d.label }}
+                </label>
+              </sc-for>
+            </div>
+            <div style="height: 1px; background: var(--color-divider)"></div>
+          </header>
+
+          <main style="flex: 1; padding: 0 20px 24px">
+            <sc-if value="{{ posters }}" hint-placeholder-val="{{ true }}">
+            <section style="padding-top: var(--space-4)">
+              <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent); margin-bottom: 10px">Tonight&rsquo;s pick</div>
+              <div class="plate" style="height: 182px; border-radius: 2px">
+                <image-slot id="bill-featured" shape="rect" placeholder="poster / press shot — Bloodroot Choir"></image-slot>
+              </div>
+              <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-top: var(--space-3)">
+                <div>
+                  <div style="font-family: var(--font-heading); font-size: 25px; line-height: 1.1">Bloodroot Choir</div>
+                  <div style="font-size: 12px; font-style: italic; color: color-mix(in srgb, var(--color-text) 62%, transparent); margin-top: 3px">Post-punk &nbsp;·&nbsp; Dusk, Olneyville</div>
+                </div>
+                <div style="text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-heading); font-size: 17px; white-space: nowrap">9:00 <span style="font-size: 11px">PM</span></div>
+              </div>
+              <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.65; text-align: justify; hyphens: auto; color: color-mix(in srgb, var(--color-text) 78%, transparent)">Four-piece out of Olneyville with two guitars, no chorus pedal and a room that sweats. Cassette Weather and Slow Vane open.</p>
+              <div style="display: flex; gap: 8px; margin-top: var(--space-3)">
+                <button type="button" class="btn btn-primary" onClick="{{ openFeatured }}" style="flex: 1">Read the listing</button>
+                <button type="button" class="btn btn-secondary" onClick="{{ saveFeatured }}">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+                </button>
+              </div>
+              <div class="hr"></div>
+            </section>
+            </sc-if>
+
+            <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="3">
+              <section style="padding-top: var(--space-4)">
+                <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin-bottom: 4px">
+                  <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">{{ sec.label }}</h6>
+                  <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 42%, transparent); font-variant-numeric: tabular-nums">{{ sec.count }}</span>
+                </div>
+                <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+                <sc-for list="{{ sec.rows }}" as="ev" hint-placeholder-count="4">
+                  <button type="button" onClick="{{ ev.open }}" style="width: 100%; display: grid; grid-template-columns: 62px 1fr auto; gap: 12px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 13px 0; cursor: pointer; color: inherit" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent)">
+                    <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; color: color-mix(in srgb, var(--color-text) 70%, transparent)">{{ ev.time }}</span>
+                    <span style="display: block; min-width: 0">
+                      <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.2">{{ ev.artist }}</span>
+                      <span style="display: block; font-size: 11.5px; line-height: 1.5; color: color-mix(in srgb, var(--color-text) 60%, transparent); margin-top: 2px"><span style="font-style: italic">{{ ev.bucket }}</span> &nbsp;·&nbsp; {{ ev.venue }}</span>
+                      <sc-if value="{{ airy }}" hint-placeholder-val="{{ true }}">
+                        <span style="display: block; font-size: 11.5px; line-height: 1.55; color: color-mix(in srgb, var(--color-text) 46%, transparent); margin-top: 4px">{{ ev.short }}</span>
+                      </sc-if>
+                    </span>
+                    <span style="display: block; text-align: right; white-space: nowrap">
+                      <span style="display: block; font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums">{{ ev.price }}</span>
+                      <span style="display: block; font-size: 10px; letter-spacing: 0.06em; color: color-mix(in srgb, var(--color-text) 45%, transparent); margin-top: 3px; font-variant-numeric: tabular-nums">{{ ev.ages }}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </section>
+            </sc-for>
+
+            <p style="margin: var(--space-6) 0 0; font-size: 11px; font-style: italic; text-align: center; color: color-mix(in srgb, var(--color-text) 40%, transparent)">Set and printed nightly. Corrections to the editor.</p>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ MAP ══ -->
+        <sc-if value="{{ isMap }}">
+        <div data-screen-label="02 The Map" style="display: flex; flex-direction: column; flex: 1">
+          <header style="background: var(--color-bg); padding: 66px 20px 12px; border-bottom: 1px solid var(--color-divider)">
+            <div style="font-family: var(--font-heading); font-size: 26px; line-height: 1">The Plan</div>
+            <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 5px">Ten shows within three miles</div>
+          </header>
+
+          <div style="position: relative; height: 340px; flex: none; background: var(--color-surface); border-bottom: 1px solid var(--color-divider); overflow: hidden">
+            <div style="position: absolute; inset: 0; background-image: repeating-linear-gradient(0deg, var(--color-divider) 0 1px, transparent 1px 30px), repeating-linear-gradient(90deg, var(--color-divider) 0 1px, transparent 1px 30px); opacity: 0.55"></div>
+            <div style="position: absolute; left: -12%; top: 34%; width: 130%; height: 34px; transform: rotate(-11deg); background: color-mix(in srgb, var(--color-accent) 11%, transparent); border-top: 1px solid var(--color-divider); border-bottom: 1px solid var(--color-divider)"></div>
+            <div style="position: absolute; left: 6%; top: 40%; transform: rotate(-11deg); font-family: var(--font-heading); font-style: italic; font-size: 11px; letter-spacing: 0.1em; color: color-mix(in srgb, var(--color-text) 45%, transparent)">Woonasquatucket</div>
+            <div style="position: absolute; left: 5%; top: 12%; font-family: var(--font-heading); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 40%, transparent)">Olneyville</div>
+            <div style="position: absolute; right: 6%; top: 14%; font-family: var(--font-heading); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 40%, transparent)">Smith Hill</div>
+            <div style="position: absolute; left: 8%; bottom: 12%; font-family: var(--font-heading); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 40%, transparent)">West End</div>
+            <div style="position: absolute; right: 7%; bottom: 26%; font-family: var(--font-heading); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 40%, transparent)">Downcity</div>
+            <sc-for list="{{ pins }}" as="p" hint-placeholder-count="6">
+              <button type="button" onClick="{{ p.pick }}" style="position: absolute; left: {{ p.left }}; top: {{ p.top }}; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; background: var(--color-bg); border: 1px solid {{ p.stroke }}; color: {{ p.stroke }}; box-shadow: var(--shadow-sm); font-family: var(--font-heading); font-size: 12px; font-variant-numeric: tabular-nums" style-hover="border-color: var(--color-accent); color: var(--color-accent)">{{ p.n }}</button>
+            </sc-for>
+            <div style="position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 6px; background: var(--color-bg); border: 1px solid var(--color-divider); padding: 5px 9px; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent)">
+              <span style="display: block; width: 26px; height: 1px; background: var(--color-text)"></span>½ mi
+            </div>
+          </div>
+
+          <main style="flex: 1; padding: var(--space-4) 20px 24px">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px">
+              <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">Nearest first</h6>
+              <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-accent)">Next seven days</span>
+            </div>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ nearby }}" as="ev" hint-placeholder-count="4">
+              <button type="button" onClick="{{ ev.open }}" style="width: 100%; display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 12px 0; cursor: pointer; color: inherit" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent)">
+                <span style="font-family: var(--font-heading); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--color-accent)">{{ ev.n }}</span>
+                <span style="display: block; min-width: 0">
+                  <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 16px; line-height: 1.2">{{ ev.artist }}</span>
+                  <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 2px">{{ ev.venue }} &nbsp;·&nbsp; {{ ev.time }}</span>
+                </span>
+                <span style="font-size: 11px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 50%, transparent); white-space: nowrap">{{ ev.dist }}</span>
+              </button>
+            </sc-for>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ SEARCH ══ -->
+        <sc-if value="{{ isSearch }}">
+        <div data-screen-label="03 Search" style="display: flex; flex-direction: column; flex: 1">
+          <header style="position: sticky; top: 0; z-index: 6; background: var(--color-bg); padding: 66px 20px 14px; border-bottom: 1px solid var(--color-divider)">
+            <div style="font-family: var(--font-heading); font-size: 26px; line-height: 1; margin-bottom: var(--space-3)">Look it up</div>
+            <div style="display: flex; align-items: center; gap: 8px; border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: 0 10px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="opacity: 0.5; flex: none"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              <input class="input" value="{{ q }}" onChange="{{ onQ }}" placeholder="Band, venue or genre" style="border: 0; padding-inline: 0">
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px">
+              <sc-for list="{{ chips }}" as="g" hint-placeholder-count="9">
+                <button type="button" onClick="{{ g.toggle }}" class="tag {{ g.cls }}" style="cursor: pointer; border: 1px solid {{ g.stroke }}; font-family: var(--font-body); font-size: 11px; padding: 4px 11px">{{ g.name }}</button>
+              </sc-for>
+            </div>
+          </header>
+          <main style="flex: 1; padding: var(--space-4) 20px 24px">
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px">
+              <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">Results</h6>
+              <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 45%, transparent); font-variant-numeric: tabular-nums">{{ resultLabel }}</span>
+            </div>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ results }}" as="ev" hint-placeholder-count="5">
+              <button type="button" onClick="{{ ev.open }}" style="width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 13px 0; cursor: pointer; color: inherit" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent)">
+                <span style="display: block; min-width: 0">
+                  <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.2">{{ ev.artist }}</span>
+                  <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 3px"><span style="font-style: italic">{{ ev.bucket }}</span> &nbsp;·&nbsp; {{ ev.venue }} &nbsp;·&nbsp; {{ ev.dayLabel }} {{ ev.time }}</span>
+                </span>
+                <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums">{{ ev.price }}</span>
+              </button>
+            </sc-for>
+            <sc-if value="{{ noResults }}">
+              <p style="margin: var(--space-6) 0 0; font-size: 13px; font-style: italic; text-align: center; color: color-mix(in srgb, var(--color-text) 50%, transparent)">Nothing on the bill for that. Clear a filter, or post the show yourself.</p>
+            </sc-if>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ EVENT DETAIL ══ -->
+        <sc-if value="{{ isDetail }}">
+        <div data-screen-label="04 A show" style="display: flex; flex-direction: column; flex: 1">
+          <header style="position: sticky; top: 0; z-index: 6; background: var(--color-bg); padding: 62px 12px 8px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-divider)">
+            <button type="button" class="btn btn-ghost" onClick="{{ back }}" style="gap: 4px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+              Back
+            </button>
+            <div style="display: flex; gap: 2px">
+              <button type="button" class="btn btn-icon btn-ghost" onClick="{{ toggleSaveCur }}" aria-label="Save">
+                <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="{{ ev.savedFill }}"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+              </button>
+              <button type="button" class="btn btn-icon btn-ghost" aria-label="Share">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><path d="M12 2v13"></path><path d="m8 6 4-4 4 4"></path></svg>
+              </button>
+            </div>
+          </header>
+
+          <main style="flex: 1; padding: 0 20px 24px">
+            <sc-if value="{{ posters }}" hint-placeholder-val="{{ true }}">
+              <div class="plate" style="height: 200px; border-radius: 2px; margin-top: var(--space-4)">
+                <image-slot id="bill-detail-hero" shape="rect" placeholder="show poster"></image-slot>
+              </div>
+            </sc-if>
+
+            <div style="padding-top: var(--space-4)">
+              <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent)">{{ ev.dayLabel }} &nbsp;·&nbsp; {{ ev.dateLong }}</div>
+              <h1 style="margin: 10px 0 0; font-weight: 400; font-size: 38px; line-height: 1.06; letter-spacing: -0.01em">{{ ev.artist }}</h1>
+              <div style="font-family: var(--font-heading); font-style: italic; font-size: 16px; color: color-mix(in srgb, var(--color-text) 62%, transparent); margin-top: 8px">{{ ev.support }}</div>
+            </div>
+
+            <div class="hr"></div>
+
+            <table class="table" style="font-size: 13px">
+              <tbody>
+                <tr><th style="width: 92px; padding-left: 0">Venue</th><td style="padding-right: 0; text-align: right">{{ ev.venue }}, {{ ev.nbhd }}</td></tr>
+                <tr><th style="padding-left: 0">Doors</th><td style="padding-right: 0; text-align: right; font-variant-numeric: tabular-nums">{{ ev.doors }}</td></tr>
+                <tr><th style="padding-left: 0">First set</th><td style="padding-right: 0; text-align: right; font-variant-numeric: tabular-nums">{{ ev.time }}</td></tr>
+                <tr><th style="padding-left: 0">Door price</th><td style="padding-right: 0; text-align: right; font-variant-numeric: tabular-nums">{{ ev.price }}</td></tr>
+                <tr><th style="padding-left: 0">Ages</th><td style="padding-right: 0; text-align: right">{{ ev.ages }}</td></tr>
+              </tbody>
+            </table>
+
+            <p style="margin: var(--space-4) 0 0; font-size: 13.5px; line-height: 1.75; text-align: justify; hyphens: auto">{{ ev.blurb }}</p>
+
+            <div class="hr"></div>
+
+            <h6 style="margin: 0 0 var(--space-2); font-size: 11px; letter-spacing: 0.16em">On the bill</h6>
+            <sc-for list="{{ ev.lineup }}" as="l" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 58px 1fr; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--color-divider); padding: 10px 0">
+                <span style="font-family: var(--font-heading); font-size: 13px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 60%, transparent)">{{ l.at }}</span>
+                <span style="display: block">
+                  <span style="display: block; font-family: var(--font-heading); font-size: 15px">{{ l.name }}</span>
+                  <span style="display: block; font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 1px">{{ l.note }}</span>
+                </span>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ friends }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top: var(--space-4); border: 1px solid var(--color-divider); border-radius: var(--radius-md); padding: var(--space-3)">
+                <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent); margin-bottom: 6px">In your scene</div>
+                <div style="font-size: 13px; line-height: 1.6">{{ ev.friendLine }}</div>
+              </div>
+            </sc-if>
+
+            <div style="display: flex; gap: 8px; margin-top: var(--space-4)">
+              <button type="button" class="btn btn-primary" onClick="{{ toggleGoingCur }}" style="flex: 1; border-color: {{ ev.goingStroke }}; color: {{ ev.goingStroke }}">{{ ev.goingLabel }}</button>
+              <button type="button" class="btn btn-secondary" style="flex: 1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14"></path></svg>
+                Tickets
+              </button>
+            </div>
+            <button type="button" class="btn btn-ghost btn-block" onClick="{{ goBand }}" style="justify-content: flex-start">More from {{ ev.artist }} &rarr;</button>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ POST ══ -->
+        <sc-if value="{{ isPost }}">
+        <div data-screen-label="05 Post a show" style="display: flex; flex-direction: column; flex: 1">
+          <header style="background: var(--color-bg); padding: 66px 20px 14px; border-bottom: 1px solid var(--color-divider)">
+            <div style="font-family: var(--font-heading); font-size: 26px; line-height: 1">Post a show</div>
+            <div style="font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); margin-top: 6px">Three fields. It prints tonight.</div>
+          </header>
+
+          <sc-if value="{{ posted }}">
+            <main style="flex: 1; padding: var(--space-8) 20px 24px; display: flex; flex-direction: column">
+              <div style="text-align: center">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
+                <h3 style="margin: var(--space-3) 0 0; font-weight: 400; font-size: 27px">It&rsquo;s on the bill</h3>
+                <p style="margin: 8px 0 0; font-size: 13px; color: color-mix(in srgb, var(--color-text) 60%, transparent)">Set into tonight&rsquo;s listings and pushed to everyone following you.</p>
+              </div>
+              <div style="margin-top: var(--space-6); border-top: 1px solid color-mix(in srgb, var(--color-text) 40%, transparent); border-bottom: 1px solid var(--color-divider); padding: 13px 0; display: grid; grid-template-columns: 62px 1fr auto; gap: 12px; align-items: baseline">
+                <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 70%, transparent)">{{ draftWhen }}</span>
+                <span style="display: block">
+                  <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px">{{ draftWho }}</span>
+                  <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 2px"><span style="font-style: italic">{{ draftGenre }}</span> &nbsp;·&nbsp; {{ draftWhere }}</span>
+                </span>
+                <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums">{{ draftPrice }}</span>
+              </div>
+              <button type="button" class="btn btn-primary btn-block" onClick="{{ goHome }}" style="margin-top: var(--space-6)">See it in The Bill</button>
+              <button type="button" class="btn btn-ghost btn-block" onClick="{{ resetPost }}">Post another</button>
+            </main>
+          </sc-if>
+
+          <sc-if value="{{ notPosted }}" hint-placeholder-val="{{ true }}">
+          <main style="flex: 1; padding: var(--space-4) 20px 24px">
+            <div class="field" style="margin-bottom: var(--space-4)">
+              <label>Who&rsquo;s playing</label>
+              <input class="input" value="{{ draft.who }}" onChange="{{ onWho }}" placeholder="Bloodroot Choir">
+            </div>
+            <div class="field" style="margin-bottom: var(--space-4)">
+              <label>Where</label>
+              <input class="input" value="{{ draft.where }}" onChange="{{ onWhere }}" placeholder="Dusk, Olneyville">
+            </div>
+            <div class="field" style="margin-bottom: var(--space-4)">
+              <label>When</label>
+              <input class="input" value="{{ draft.when }}" onChange="{{ onWhen }}" placeholder="Tonight, 9:00 PM">
+            </div>
+
+            <div style="height: 1px; background: var(--color-divider); margin: var(--space-4) 0"></div>
+
+            <button type="button" onClick="{{ toggleMore }}" style="width: 100%; display: flex; align-items: center; justify-content: space-between; background: transparent; border: 0; padding: 0 0 var(--space-3); cursor: pointer; color: var(--color-accent); font-family: var(--font-heading); font-size: 15px">
+              <span>Add the details</span>
+              <span style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase">{{ moreLabel }}</span>
+            </button>
+
+            <sc-if value="{{ more }}">
+              <div style="display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: var(--space-4)">
+                <div class="plate" style="height: 150px; border-radius: 2px">
+                  <image-slot id="bill-post-poster" shape="rect" placeholder="drop your poster"></image-slot>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3)">
+                  <div class="field">
+                    <label>Door price</label>
+                    <input class="input" value="{{ draft.price }}" onChange="{{ onPrice }}" placeholder="$10">
+                  </div>
+                  <div class="field">
+                    <label>Ages</label>
+                    <div class="seg" style="width: 100%">
+                      <sc-for list="{{ ageOpts }}" as="a" hint-placeholder-count="3">
+                        <label class="seg-opt" style="flex: 1; justify-content: center; font-size: 12px">
+                          <input type="radio" name="ages" checked="{{ a.on }}" onChange="{{ a.pick }}">
+                          {{ a.label }}
+                        </label>
+                      </sc-for>
+                    </div>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Genre</label>
+                  <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                    <sc-for list="{{ genreOpts }}" as="g" hint-placeholder-count="6">
+                      <button type="button" onClick="{{ g.pick }}" class="tag {{ g.cls }}" style="cursor: pointer; border: 1px solid {{ g.stroke }}; font-family: var(--font-body); font-size: 11px; padding: 4px 11px">{{ g.name }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>A line for the paper</label>
+                  <textarea class="input" value="{{ draft.note }}" onChange="{{ onNote }}" placeholder="One sentence. Who you sound like, what the room will be." style="min-height: 72px"></textarea>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="height: 1px; background: var(--color-divider); margin-bottom: var(--space-4)"></div>
+            <h6 style="margin: 0 0 var(--space-2); font-size: 11px; letter-spacing: 0.16em; color: color-mix(in srgb, var(--color-text) 55%, transparent)">How it will read</h6>
+            <div style="border-top: 1px solid color-mix(in srgb, var(--color-text) 40%, transparent); border-bottom: 1px solid var(--color-divider); padding: 13px 0; display: grid; grid-template-columns: 62px 1fr auto; gap: 12px; align-items: baseline">
+              <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 70%, transparent)">{{ draftWhen }}</span>
+              <span style="display: block">
+                <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px">{{ draftWho }}</span>
+                <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 2px"><span style="font-style: italic">{{ draftGenre }}</span> &nbsp;·&nbsp; {{ draftWhere }}</span>
+              </span>
+              <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums">{{ draftPrice }}</span>
+            </div>
+
+            <button type="button" class="btn btn-primary btn-block" onClick="{{ submit }}" style="margin-top: var(--space-4)">Send it to press</button>
+            <p style="margin: var(--space-3) 0 0; font-size: 11px; font-style: italic; text-align: center; color: color-mix(in srgb, var(--color-text) 45%, transparent)">Posting as Bloodroot Choir &nbsp;·&nbsp; verified band account</p>
+          </main>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <!-- ══ SAVED ══ -->
+        <sc-if value="{{ isSaved }}">
+        <div data-screen-label="06 Your list" style="display: flex; flex-direction: column; flex: 1">
+          <header style="background: var(--color-bg); padding: 66px 20px 14px; border-bottom: 1px solid var(--color-divider)">
+            <div style="font-family: var(--font-heading); font-size: 26px; line-height: 1">Your list</div>
+            <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 6px">{{ listSummary }}</div>
+          </header>
+          <main style="flex: 1; padding: var(--space-4) 20px 24px">
+            <h6 style="margin: 0 0 4px; font-size: 12px; letter-spacing: 0.16em">Going</h6>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ goingList }}" as="ev" hint-placeholder-count="2">
+              <button type="button" onClick="{{ ev.open }}" style="width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 13px 0; cursor: pointer; color: inherit" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent)">
+                <span style="display: block; min-width: 0">
+                  <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.2">{{ ev.artist }}</span>
+                  <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 3px">{{ ev.venue }} &nbsp;·&nbsp; {{ ev.dayLabel }} {{ ev.time }}</span>
+                </span>
+                <span style="font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent); white-space: nowrap">Going</span>
+              </button>
+            </sc-for>
+
+            <h6 style="margin: var(--space-6) 0 4px; font-size: 12px; letter-spacing: 0.16em">Kept for later</h6>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ savedList }}" as="ev" hint-placeholder-count="2">
+              <button type="button" onClick="{{ ev.open }}" style="width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--color-divider); padding: 13px 0; cursor: pointer; color: inherit" style-hover="background: color-mix(in srgb, var(--color-text) 4%, transparent)">
+                <span style="display: block; min-width: 0">
+                  <span style="display: block; font-family: var(--font-heading); font-weight: 600; font-size: 17px; line-height: 1.2">{{ ev.artist }}</span>
+                  <span style="display: block; font-size: 11.5px; color: color-mix(in srgb, var(--color-text) 58%, transparent); margin-top: 3px">{{ ev.venue }} &nbsp;·&nbsp; {{ ev.dayLabel }} {{ ev.time }}</span>
+                </span>
+                <span style="font-family: var(--font-heading); font-size: 14px; font-variant-numeric: tabular-nums">{{ ev.price }}</span>
+              </button>
+            </sc-for>
+            <button type="button" class="btn btn-secondary btn-block" style="margin-top: var(--space-6)">Add all to calendar</button>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ BAND ══ -->
+        <sc-if value="{{ isBand }}">
+        <div data-screen-label="07 A band" style="display: flex; flex-direction: column; flex: 1">
+          <header style="position: sticky; top: 0; z-index: 6; background: var(--color-bg); padding: 62px 12px 8px; border-bottom: 1px solid var(--color-divider)">
+            <button type="button" class="btn btn-ghost" onClick="{{ back }}" style="gap: 4px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>
+              Back
+            </button>
+          </header>
+          <main style="flex: 1; padding: 0 20px 24px">
+            <sc-if value="{{ posters }}" hint-placeholder-val="{{ true }}">
+              <div class="plate" style="height: 176px; border-radius: 2px; margin-top: var(--space-4)">
+                <image-slot id="bill-band-hero" shape="rect" placeholder="band photo"></image-slot>
+              </div>
+            </sc-if>
+            <div style="padding-top: var(--space-4)">
+              <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent)">{{ band.kicker }}</div>
+              <h1 style="margin: 10px 0 0; font-weight: 400; font-size: 36px; line-height: 1.06">{{ band.name }}</h1>
+              <div style="font-family: var(--font-heading); font-style: italic; font-size: 15px; color: color-mix(in srgb, var(--color-text) 62%, transparent); margin-top: 7px">{{ band.line }}</div>
+              <sc-if value="{{ band.hireOn }}">
+                <div style="margin-top: 10px">
+                  <span class="tag tag-accent" style="font-size: 10.5px">Available for hire</span>
+                </div>
+              </sc-if>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: var(--space-4)">
+              <button type="button" class="btn btn-primary" onClick="{{ toggleFollow }}" style="flex: 1; border-color: {{ band.stroke }}; color: {{ band.stroke }}">{{ band.followLabel }}</button>
+              <button type="button" class="btn btn-secondary" onClick="{{ toggleListen }}" style="flex: 1">{{ listenLabel }}</button>
+            </div>
+            <sc-if value="{{ band.hireOn }}">
+              <button type="button" class="btn btn-secondary btn-block" style="margin-top: 8px">Request to book &rarr;</button>
+            </sc-if>
+            <p style="margin: var(--space-4) 0 0; font-size: 13.5px; line-height: 1.75; text-align: justify; hyphens: auto">{{ band.bio }}</p>
+            <div class="hr"></div>
+            <h6 style="margin: 0 0 4px; font-size: 12px; letter-spacing: 0.16em">Upcoming</h6>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ bandShows }}" as="s" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--color-divider); padding: 12px 0">
+                <span style="font-family: var(--font-heading); font-size: 13px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 60%, transparent)">{{ s.date }}</span>
+                <span style="display: block">
+                  <span style="display: block; font-family: var(--font-heading); font-size: 15.5px">{{ s.venue }}</span>
+                  <span style="display: block; font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 2px">{{ s.note }}</span>
+                </span>
+                <span style="font-size: 11px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 55%, transparent)">{{ s.price }}</span>
+              </div>
+            </sc-for>
+            <div class="hr"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); font-size: 12px">
+              <div>
+                <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 45%, transparent); margin-bottom: 5px">Members</div>
+                <div style="line-height: 1.7">Ada Fournier &mdash; guitar, voice<br>Wes Tamayo &mdash; guitar<br>June Okonkwo &mdash; bass<br>Sam Reyes &mdash; drums</div>
+              </div>
+              <div>
+                <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 45%, transparent); margin-bottom: 5px">Sounds like</div>
+                <div style="line-height: 1.7; font-style: italic">Dry drums, ringing open strings, one voice pitched just under the guitars.</div>
+              </div>
+            </div>
+
+            <div class="hr"></div>
+            <h6 style="margin: 0 0 var(--space-2); font-size: 11px; letter-spacing: 0.16em">Style</h6>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px">
+              <sc-for list="{{ styleTags }}" as="tag" hint-placeholder-count="2">
+                <span class="tag tag-outline" style="font-size: 11px">{{ tag }}</span>
+              </sc-for>
+            </div>
+
+            <div class="hr"></div>
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px">
+              <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">Sound samples</h6>
+              <span style="font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 42%, transparent)">{{ sampleCountLabel }}</span>
+            </div>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ sampleRows }}" as="t" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 30px 1fr auto; gap: 10px; align-items: center; border-bottom: 1px solid var(--color-divider); padding: 11px 0">
+                <button type="button" class="btn btn-icon btn-ghost" onClick="{{ t.toggle }}" aria-label="Play sample" style="width: 28px; height: 28px">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <sc-if value="{{ t.isPlaying }}"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></sc-if>
+                    <sc-if value="{{ t.notPlaying }}" hint-placeholder-val="{{ true }}"><path d="M8 5v14l11-7z"></path></sc-if>
+                  </svg>
+                </button>
+                <span style="min-width: 0">
+                  <span style="display: block; font-family: var(--font-heading); font-size: 15px; line-height: 1.3">{{ t.title }}</span>
+                  <sc-if value="{{ t.isPlaying }}">
+                    <span style="display: flex; align-items: center; gap: 6px; margin-top: 4px">
+                      <span style="display: flex; align-items: flex-end; gap: 2px; height: 10px">
+                        <span style="display: block; width: 2px; height: 100%; background: var(--color-accent); transform-origin: bottom; animation: eqBar 0.9s ease-in-out infinite"></span>
+                        <span style="display: block; width: 2px; height: 100%; background: var(--color-accent); transform-origin: bottom; animation: eqBar 0.9s ease-in-out infinite 0.15s"></span>
+                        <span style="display: block; width: 2px; height: 100%; background: var(--color-accent); transform-origin: bottom; animation: eqBar 0.9s ease-in-out infinite 0.3s"></span>
+                      </span>
+                      <span style="font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-accent)">Playing</span>
+                    </span>
+                  </sc-if>
+                </span>
+                <span style="font-size: 11px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 55%, transparent)">{{ t.duration }}</span>
+              </div>
+            </sc-for>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ YOU ══ -->
+        <sc-if value="{{ isYou }}">
+        <div data-screen-label="08 Your account" style="display: flex; flex-direction: column; flex: 1">
+          <header style="background: var(--color-bg); padding: 66px 20px 14px; border-bottom: 1px solid var(--color-divider)">
+            <div style="font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--color-accent)">Band account</div>
+            <div style="font-family: var(--font-heading); font-size: 30px; line-height: 1.05; margin-top: 7px">Bloodroot Choir</div>
+            <div style="font-size: 11.5px; font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); margin-top: 6px">Olneyville &nbsp;·&nbsp; 1,204 following</div>
+          </header>
+          <main style="flex: 1; padding: var(--space-4) 20px 24px">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--color-divider); border-radius: var(--radius-md)">
+              <sc-for list="{{ stats }}" as="s" hint-placeholder-count="3">
+                <div style="padding: var(--space-3) var(--space-2); text-align: center; border-right: 1px solid var(--color-divider)">
+                  <div style="font-family: var(--font-heading); font-size: 24px; font-variant-numeric: tabular-nums; line-height: 1">{{ s.n }}</div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 50%, transparent); margin-top: 6px">{{ s.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" onClick="{{ goPost }}" style="margin-top: var(--space-4)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+              Post a show
+            </button>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: var(--space-6)">
+              <div>
+                <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">Hire profile</h6>
+                <div style="font-size: 11px; font-style: italic; color: color-mix(in srgb, var(--color-text) 55%, transparent); margin-top: 4px">Shown on your public profile</div>
+              </div>
+              <div class="seg" style="width: auto; flex: none">
+                <label class="seg-opt" style="padding: 6px 13px; font-size: 11.5px">
+                  <input type="radio" name="hire" checked="{{ hireYes }}" onChange="{{ setHireOn }}">
+                  Available
+                </label>
+                <label class="seg-opt" style="padding: 6px 13px; font-size: 11.5px">
+                  <input type="radio" name="hire" checked="{{ hireNo }}" onChange="{{ setHireOff }}">
+                  Hidden
+                </label>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top: var(--space-4)">
+              <label>Style</label>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                <sc-for list="{{ styleOpts }}" as="g" hint-placeholder-count="6">
+                  <button type="button" onClick="{{ g.pick }}" class="tag {{ g.cls }}" style="cursor: pointer; border: 1px solid {{ g.stroke }}; font-family: var(--font-body); font-size: 11px; padding: 4px 11px">{{ g.name }}</button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: baseline; justify-content: space-between; margin-top: var(--space-4)">
+              <h6 style="margin: 0; font-size: 12px; letter-spacing: 0.16em">Sound samples</h6>
+              <button type="button" onClick="{{ addSample }}" class="btn btn-ghost" style="font-size: 11px; padding: 4px 10px">+ Add sample</button>
+            </div>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ sampleRows }}" as="t" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 28px 1fr auto 26px; gap: 10px; align-items: center; border-bottom: 1px solid var(--color-divider); padding: 10px 0">
+                <button type="button" class="btn btn-icon btn-ghost" onClick="{{ t.toggle }}" aria-label="Preview" style="width: 26px; height: 26px">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <sc-if value="{{ t.isPlaying }}"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></sc-if>
+                    <sc-if value="{{ t.notPlaying }}" hint-placeholder-val="{{ true }}"><path d="M8 5v14l11-7z"></path></sc-if>
+                  </svg>
+                </button>
+                <input class="input" value="{{ t.title }}" onChange="{{ t.rename }}" style="border: 0; padding: 0; font-family: var(--font-heading); font-size: 14.5px; background: transparent; width: 100%; min-width: 0">
+                <span style="font-size: 11px; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--color-text) 55%, transparent); white-space: nowrap">{{ t.duration }}</span>
+                <button type="button" class="btn btn-icon btn-ghost" onClick="{{ t.remove }}" aria-label="Remove sample" style="width: 26px; height: 26px">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+
+            <h6 style="margin: var(--space-6) 0 4px; font-size: 12px; letter-spacing: 0.16em">Your listings</h6>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ yourShows }}" as="s" hint-placeholder-count="3">
+              <div style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: baseline; border-bottom: 1px solid var(--color-divider); padding: 13px 0">
+                <span style="display: block">
+                  <span style="display: block; font-family: var(--font-heading); font-size: 16px; line-height: 1.2">{{ s.venue }}</span>
+                  <span style="display: block; font-size: 11px; color: color-mix(in srgb, var(--color-text) 55%, transparent); margin-top: 3px; font-variant-numeric: tabular-nums">{{ s.when }} &nbsp;·&nbsp; {{ s.reach }}</span>
+                </span>
+                <span class="tag {{ s.cls }}">{{ s.status }}</span>
+              </div>
+            </sc-for>
+
+            <h6 style="margin: var(--space-6) 0 4px; font-size: 12px; letter-spacing: 0.16em">Settings</h6>
+            <div style="height: 1px; background: color-mix(in srgb, var(--color-text) 40%, transparent)"></div>
+            <sc-for list="{{ settings }}" as="s" hint-placeholder-count="4">
+              <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--color-divider); padding: 13px 0; font-size: 14px">
+                <span>{{ s.label }}</span>
+                <span style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 50%, transparent)">{{ s.value }}</span>
+              </div>
+            </sc-for>
+          </main>
+        </div>
+        </sc-if>
+
+        <!-- ══ TAB BAR ══ -->
+        <nav style="position: sticky; bottom: 0; z-index: 8; background: var(--color-bg); border-top: 1px solid var(--color-divider); display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; padding: 9px 8px 26px">
+          <button type="button" onClick="{{ goHome }}" style="display: flex; flex-direction: column; align-items: center; gap: 5px; background: transparent; border: 0; cursor: pointer; padding: 4px 0; color: {{ tab.home }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"></path><path d="M18 14h-8"></path><path d="M15 18h-5"></path><path d="M10 6h8v4h-8z"></path></svg>
+            <span style="font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase">Bill</span>
+          </button>
+          <button type="button" onClick="{{ goMap }}" style="display: flex; flex-direction: column; align-items: center; gap: 5px; background: transparent; border: 0; cursor: pointer; padding: 4px 0; color: {{ tab.map }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <span style="font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase">Map</span>
+          </button>
+          <button type="button" onClick="{{ goPost }}" style="display: flex; flex-direction: column; align-items: center; gap: 5px; background: transparent; border: 0; cursor: pointer; padding: 0; color: {{ tab.post }}">
+            <span style="width: 38px; height: 38px; border-radius: 50%; border: 1px solid currentColor; display: grid; place-items: center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </span>
+            <span style="font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase">Post</span>
+          </button>
+          <button type="button" onClick="{{ goSaved }}" style="display: flex; flex-direction: column; align-items: center; gap: 5px; background: transparent; border: 0; cursor: pointer; padding: 4px 0; color: {{ tab.saved }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            <span style="font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase">List</span>
+          </button>
+          <button type="button" onClick="{{ goYou }}" style="display: flex; flex-direction: column; align-items: center; gap: 5px; background: transparent; border: 0; cursor: pointer; padding: 4px 0; color: {{ tab.you }}">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            <span style="font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase">You</span>
+          </button>
+        </nav>
+
+      </div>
+    </x-import>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;cityName&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Providence&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Scene&quot;},&quot;listingDensity&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Airy&quot;,&quot;Compact&quot;],&quot;default&quot;:&quot;Airy&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Listings&quot;},&quot;showPosters&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Listings&quot;},&quot;showFriendsGoing&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Listings&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;map&quot;,&quot;search&quot;,&quot;detail&quot;,&quot;post&quot;,&quot;saved&quot;,&quot;band&quot;,&quot;you&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+class Component extends DCLogic {
+  EVENTS = [
+    { id:'bloodroot', artist:'Bloodroot Choir', support:'w/ Slow Vane and Cassette Weather', bucket:'Rock & punk', venue:'Dusk', nbhd:'Olneyville', day:'Tonight', dayLabel:'Tonight', dateLong:'Tue, 28 July', time:'9:00 PM', doors:'8:30 PM', price:'$12', ages:'21+', dist:'0.8 mi', pos:{left:'14%',top:'22%'},
+      short:'Two guitars, no chorus pedal, a room that sweats.',
+      blurb:'Four years in the same practice room on Magnolia Street and they still play like the lease is up. The new songs are slower and meaner. Cassette Weather open with a set of tape loops; Slow Vane play second and loudest.',
+      lineup:[{at:'9:00',name:'Cassette Weather',note:'tape loops, solo'},{at:'9:50',name:'Slow Vane',note:'noise rock, Pawtucket'},{at:'10:40',name:'Bloodroot Choir',note:'headline'}],
+      friendLine:'Nadia, Tomás and Ruth are going. Four more from Olneyville marked it.' },
+    { id:'coleman', artist:'The Coleman Trio', support:'Standards, two sets', bucket:'Jazz', venue:"Nick-a-Nee's", nbhd:'Federal Hill', day:'Tonight', dayLabel:'Tonight', dateLong:'Tue, 28 July', time:'7:30 PM', doors:'7:00 PM', price:'Free', ages:'21+', dist:'1.4 mi', pos:{left:'62%',top:'56%'},
+      short:'Standards until the room thins out. Tip the bucket.',
+      blurb:'A Tuesday residency going on nine years. Ernest Coleman on piano, whoever is in town on bass and brushes. No cover, no set list, and the kitchen stays open.',
+      lineup:[{at:'7:30',name:'First set',note:'trio'},{at:'9:15',name:'Second set',note:'sit-ins welcome'}],
+      friendLine:'Ruth is going. Two people you follow have this saved.' },
+    { id:'sinfonia', artist:'Providence Sinfonia', support:'Ravel and Florence Price', bucket:'Classical', venue:'Columbus Theatre', nbhd:'West End', day:'Tonight', dayLabel:'Tonight', dateLong:'Tue, 28 July', time:'8:00 PM', doors:'7:15 PM', price:'$28', ages:'All ages', dist:'1.1 mi', pos:{left:'24%',top:'72%'},
+      short:'Le Tombeau de Couperin and the Third Symphony.',
+      blurb:'Forty players in a room built for vaudeville. Ravel first, then Price&rsquo;s Third — the juba movement is the reason to come. Doors at a quarter past seven; the balcony is unreserved.',
+      lineup:[{at:'8:00',name:'Ravel — Le Tombeau de Couperin',note:'four movements'},{at:'8:40',name:'Price — Symphony No. 3',note:'after the interval'}],
+      friendLine:'Two people you follow are going.' },
+    { id:'vault', artist:'Vault Sessions: DJ Amaru', support:'w/ Nine Fathoms, resident sets', bucket:'Electronic', venue:'Alchemy', nbhd:'Downcity', day:'Tonight', dayLabel:'Tonight', dateLong:'Tue, 28 July', time:'11:00 PM', doors:'10:30 PM', price:'$15', ages:'21+', dist:'0.6 mi', pos:{left:'74%',top:'70%'},
+      short:'House and broken beat until two.',
+      blurb:'Monthly night in the basement room. Amaru plays long — three hours, mostly records — with Nine Fathoms warming up. The sound system was rebuilt in spring and it shows.',
+      lineup:[{at:'11:00',name:'Nine Fathoms',note:'warm-up'},{at:'12:00',name:'DJ Amaru',note:'all vinyl'}],
+      friendLine:'Six in your scene are going.' },
+    { id:'openmic', artist:'Open Mic at AS220', support:'Sign-up at six', bucket:'Open mic', venue:'AS220', nbhd:'Downcity', day:'Tomorrow', dayLabel:'Tomorrow', dateLong:'Wed, 29 July', time:'7:00 PM', doors:'6:00 PM', price:'Free', ages:'All ages', dist:'0.5 mi', pos:{left:'68%',top:'62%'},
+      short:'Five minutes or two songs, whichever ends first.',
+      blurb:'The most forgiving room in the city. Sign-up sheet goes on the wall at six and fills by half past. House amp, house kit, bring your own cable.',
+      lineup:[{at:'6:00',name:'Sign-up',note:'first come'},{at:'7:00',name:'First slot',note:'runs till ten'}],
+      friendLine:'Tomás played this last week.' },
+    { id:'marisol', artist:'Marisol & the Long Way', support:'w/ Bell Hollow', bucket:'Folk & country', venue:'The Parlour', nbhd:'Smith Hill', day:'Tomorrow', dayLabel:'Tomorrow', dateLong:'Wed, 29 July', time:'8:30 PM', doors:'8:00 PM', price:'$10', ages:'21+', dist:'1.9 mi', pos:{left:'80%',top:'20%'},
+      short:'Pedal steel, close harmony, a short bar.',
+      blurb:'Marisol Vega writes the kind of songs that end on the wrong chord and mean it. Pedal steel and a second voice. Bell Hollow open at half eight.',
+      lineup:[{at:'8:30',name:'Bell Hollow',note:'duo'},{at:'9:30',name:'Marisol & the Long Way',note:'headline'}],
+      friendLine:'Nadia is going.' },
+    { id:'vespers', artist:'Iron Vespers', support:'w/ Gravecoat, Slow Vane', bucket:'Metal', venue:'Askew', nbhd:'Downcity', day:'Weekend', dayLabel:'Friday', dateLong:'Fri, 31 July', time:'9:00 PM', doors:'8:30 PM', price:'$18', ages:'18+', dist:'0.7 mi', pos:{left:'70%',top:'50%'},
+      short:'Doom, three bands, earplugs at the door.',
+      blurb:'Two guitars tuned to C and a drummer who plays behind everything. Gravecoat come down from Worcester. Askew hands out plugs at the door and you should take them.',
+      lineup:[{at:'9:00',name:'Slow Vane',note:'local'},{at:'9:50',name:'Gravecoat',note:'Worcester'},{at:'10:45',name:'Iron Vespers',note:'headline'}],
+      friendLine:'Three in your scene are going.' },
+    { id:'hoxsie', artist:'Hoxsie Fest, Day One', support:'Twelve bands, two stages', bucket:'Festival', venue:'Roger Williams Park', nbhd:'Elmwood', day:'Weekend', dayLabel:'Saturday', dateLong:'Sat, 1 August', time:'1:00 PM', doors:'12:00 PM', price:'$45', ages:'All ages', dist:'3.2 mi', pos:{left:'44%',top:'84%'},
+      short:'Twelve bands, two stages, one field.',
+      blurb:'Ninth year in the park. Two stages running against each other from one o&rsquo;clock, food from the Broad Street trucks, and the whole thing wrapped by ten so the neighbours stay friendly.',
+      lineup:[{at:'1:00',name:'Field stage opens',note:'six bands'},{at:'2:00',name:'Bandstand opens',note:'six bands'},{at:'8:30',name:'Kestrel',note:'closing set'}],
+      friendLine:'Eleven in your scene are going. Nadia has a spare ticket.' },
+    { id:'kestrel', artist:'Kestrel', support:'w/ Bloodroot Choir', bucket:'Rock & punk', venue:'Fête Ballroom', nbhd:'Olneyville', day:'Weekend', dayLabel:'Saturday', dateLong:'Sat, 1 August', time:'8:00 PM', doors:'7:00 PM', price:'$22', ages:'All ages', dist:'0.9 mi', pos:{left:'18%',top:'38%'},
+      short:'Room for six hundred and it will fill.',
+      blurb:'First hometown show since the record. The ballroom holds six hundred and this will sell through the week. Bloodroot Choir open, which is the reason half the room is coming.',
+      lineup:[{at:'8:00',name:'Bloodroot Choir',note:'support'},{at:'9:15',name:'Kestrel',note:'headline'}],
+      friendLine:'Nine in your scene are going.' },
+    { id:'gospel', artist:'Sunday Gospel Brunch', support:'Mount Hope Voices', bucket:'Gospel & soul', venue:'The Strand', nbhd:'Downcity', day:'Weekend', dayLabel:'Sunday', dateLong:'Sun, 2 August', time:'11:00 AM', doors:'10:30 AM', price:'$20', ages:'All ages', dist:'0.6 mi', pos:{left:'76%',top:'40%'},
+      short:'Twenty voices and a plate of eggs.',
+      blurb:'Twenty voices from Mount Hope with a four-piece behind them, and the ticket includes the plate. It runs two hours and the last twenty minutes are the ones to stay for.',
+      lineup:[{at:'11:00',name:'Mount Hope Voices',note:'first set'},{at:'12:15',name:'Full choir',note:'with band'}],
+      friendLine:'Ruth and two others are going.' }
+  ];
+
+  buckets = ['Rock & punk','Jazz','Classical','Electronic','Folk & country','Metal','Gospel & soul','Open mic','Festival'];
+
+  styleOptions = ['Post-punk','No wave','Krautrock','Shoegaze','Noise rock','Art rock','Math rock','Dream pop'];
+
+  state = {
+    screen: null, evId: 'bloodroot', day: 'All', q: '', genres: [],
+    going: { bloodroot: true, hoxsie: true }, saved: { sinfonia: true, kestrel: true },
+    follow: false, more: false, posted: false, extra: null, prev: 'home',
+    draft: { who: '', where: '', when: '', price: '', ages: '21+', genre: 'Rock & punk', note: '' },
+    hireOn: true, styleTags: ['Post-punk', 'No wave'], playingSample: null,
+    samples: [
+      { id: 's1', title: 'Practice Room, Take 2', duration: '2:14' },
+      { id: 's2', title: 'Magnolia St. (live)', duration: '4:37' },
+      { id: 's3', title: 'Slow Vane (demo)', duration: '3:02' }
+    ]
+  };
+
+  currentScreen() { return this.state.screen || this.props.startScreen || 'home'; }
+  allEvents() { return this.state.extra ? [this.state.extra].concat(this.EVENTS) : this.EVENTS; }
+  findEvent(id) { return this.allEvents().find(e => e.id === id) || this.EVENTS[0]; }
+
+  goTo = (s) => { const p = this.currentScreen(); this.setState({ screen: s, prev: p }); };
+  openEvent = (id) => { const p = this.currentScreen(); this.setState({ evId: id, screen: 'detail', prev: p }); };
+  patch = (k, v) => this.setState({ [k]: v });
+  setDraft = (k, v) => this.setState(st => ({ draft: Object.assign({}, st.draft, { [k]: v }) }));
+
+  toggleFlag(map, id) {
+    const next = Object.assign({}, this.state[map]);
+    if (next[id]) { delete next[id]; } else { next[id] = true; }
+    this.setState({ [map]: next });
+  }
+
+  setHireOn = (v) => this.patch('hireOn', v);
+  toggleStyleTag = (name) => this.setState(s => ({
+    styleTags: s.styleTags.indexOf(name) > -1 ? s.styleTags.filter(x => x !== name) : s.styleTags.concat([name])
+  }));
+  togglePlay = (id) => this.setState(s => ({ playingSample: s.playingSample === id ? null : id }));
+  renameSample = (id, title) => this.setState(s => ({ samples: s.samples.map(t => t.id === id ? Object.assign({}, t, { title }) : t) }));
+  addSample = () => {
+    const id = 'sNew' + Date.now();
+    this.setState(s => ({ samples: s.samples.concat([{ id, title: 'New sample', duration: '0:00' }]) }));
+  };
+  removeSample = (id) => this.setState(s => ({
+    samples: s.samples.filter(t => t.id !== id),
+    playingSample: s.playingSample === id ? null : s.playingSample
+  }));
+
+  sendToPress = () => {
+    const d = this.state.draft;
+    const who = d.who.trim() || 'Bloodroot Choir';
+    const extra = {
+      id: 'yours', artist: who, support: d.note.trim() || 'Newly posted', bucket: d.genre,
+      venue: d.where.trim() || 'Dusk', nbhd: 'Olneyville', day: 'Tonight', dayLabel: 'Tonight',
+      dateLong: 'Tue, 28 July', time: d.when.trim() || '9:00 PM', doors: 'Half an hour before',
+      price: d.price.trim() || 'Free', ages: d.ages, dist: '0.8 mi', pos: { left: '30%', top: '30%' },
+      short: d.note.trim() || 'Just posted to the bill.',
+      blurb: d.note.trim() || 'Posted by the band. Details to follow.',
+      lineup: [{ at: (d.when.trim() || '9:00 PM').replace(/\s*[AP]M/i, ''), name: who, note: 'headline' }],
+      friendLine: 'Pushed to 1,204 people following you.'
+    };
+    this.setState({ extra, posted: true });
+  };
+
+  renderVals() {
+    const s = this.currentScreen();
+    const st = this.state;
+    const ACC = 'var(--color-accent)';
+    const DIM = 'color-mix(in srgb, var(--color-text) 42%, transparent)';
+    const INK = 'var(--color-text)';
+    const evs = this.allEvents();
+    const deco = (e, i) => Object.assign({}, e, {
+      open: () => this.openEvent(e.id), n: i + 1,
+      savedFill: st.saved[e.id] ? ACC : 'none',
+      goingLabel: st.going[e.id] ? "You're going" : "I'm going",
+      goingStroke: st.going[e.id] ? ACC : INK
+    });
+
+    const dayOrder = ['Tonight', 'Tomorrow', 'Weekend'];
+    const labels = { Tonight: 'Tonight — Tue 28 July', Tomorrow: 'Tomorrow — Wed 29 July', Weekend: 'This weekend' };
+    const sections = dayOrder
+      .filter(d => st.day === 'All' || st.day === d)
+      .map(d => {
+        const rows = evs.filter(e => e.day === d).map(deco);
+        return { label: labels[d], count: rows.length === 1 ? '1 show' : rows.length + ' shows', rows };
+      })
+      .filter(sec => sec.rows.length > 0);
+
+    const q = st.q.trim().toLowerCase();
+    const results = evs.filter(e => {
+      const okG = st.genres.length === 0 || st.genres.indexOf(e.bucket) > -1;
+      const okQ = !q || (e.artist + ' ' + e.venue + ' ' + e.bucket + ' ' + e.nbhd).toLowerCase().indexOf(q) > -1;
+      return okG && okQ;
+    }).map(deco);
+
+    const ev = deco(this.findEvent(st.evId), 0);
+    const near = evs.slice().sort((a, b) => parseFloat(a.dist) - parseFloat(b.dist)).map(deco);
+    const goingList = evs.filter(e => st.going[e.id]).map(deco);
+    const savedList = evs.filter(e => st.saved[e.id]).map(deco);
+    const d = st.draft;
+
+    const sampleRows = st.samples.map(t => ({
+      id: t.id, title: t.title, duration: t.duration,
+      isPlaying: st.playingSample === t.id, notPlaying: st.playingSample !== t.id,
+      toggle: () => this.togglePlay(t.id),
+      rename: (e) => this.renameSample(t.id, e.target.value),
+      remove: () => this.removeSample(t.id)
+    }));
+    const featuredPlaying = st.samples.length > 0 && st.playingSample === st.samples[0].id;
+
+    return {
+      city: this.props.cityName ?? 'Providence',
+      posters: this.props.showPosters ?? true,
+      friends: this.props.showFriendsGoing ?? true,
+      airy: (this.props.listingDensity ?? 'Airy') === 'Airy',
+
+      isHome: s === 'home', isMap: s === 'map', isSearch: s === 'search', isDetail: s === 'detail',
+      isPost: s === 'post', isSaved: s === 'saved', isBand: s === 'band', isYou: s === 'you',
+
+      tab: {
+        home: s === 'home' ? ACC : DIM, map: s === 'map' ? ACC : DIM, post: s === 'post' ? ACC : DIM,
+        saved: s === 'saved' ? ACC : DIM, you: s === 'you' ? ACC : DIM
+      },
+      contents: [['01', 'The Bill', 'home'], ['02', 'The Plan', 'map'], ['03', 'Look it up', 'search'], ['04', 'A show', 'detail'], ['05', 'Post a show', 'post'], ['06', 'Your list', 'saved'], ['07', 'A band', 'band'], ['08', 'Your account', 'you']]
+        .map(c => ({ num: c[0], label: c[1], go: () => this.goTo(c[2]), color: s === c[2] ? ACC : INK })),
+
+      goHome: () => this.goTo('home'), goMap: () => this.goTo('map'), goSearch: () => this.goTo('search'),
+      goPost: () => this.goTo('post'), goSaved: () => this.goTo('saved'), goYou: () => this.goTo('you'),
+      goBand: () => this.goTo('band'), back: () => this.goTo(st.prev === 'detail' ? 'home' : st.prev),
+
+      dayTabs: ['All', 'Tonight', 'Tomorrow', 'Weekend'].map(x => ({
+        label: x, on: st.day === x, pick: () => this.patch('day', x)
+      })),
+      sections,
+      openFeatured: () => this.open('bloodroot'),
+      saveFeatured: () => this.toggleFlag('saved', 'bloodroot'),
+
+      pins: near.map(e => ({
+        n: e.n, left: e.pos.left, top: e.pos.top,
+        stroke: st.evId === e.id ? ACC : 'color-mix(in srgb, var(--color-text) 45%, transparent)',
+        pick: e.open
+      })),
+      nearby: near,
+
+      q: st.q, onQ: (e) => this.patch('q', e.target.value),
+      chips: this.buckets.map(name => {
+        const on = st.genres.indexOf(name) > -1;
+        return {
+          name, cls: on ? 'tag-accent' : 'tag-outline',
+          stroke: on ? 'transparent' : 'var(--color-divider)',
+          toggle: () => this.setState(prev => ({
+            genres: on ? prev.genres.filter(g => g !== name) : prev.genres.concat([name])
+          }))
+        };
+      }),
+      results, noResults: results.length === 0,
+      resultLabel: results.length === 1 ? '1 show' : results.length + ' shows',
+
+      ev, toggleGoingCur: () => this.toggleFlag('going', st.evId), toggleSaveCur: () => this.toggleFlag('saved', st.evId),
+
+      posted: st.posted, notPosted: !st.posted,
+      resetPost: () => this.setState({ posted: false, draft: { who: '', where: '', when: '', price: '', ages: '21+', genre: 'Rock & punk', note: '' } }),
+      draft: d,
+      draftWho: d.who.trim() || 'Your band',
+      draftWhere: d.where.trim() || 'Venue, neighbourhood',
+      draftWhen: d.when.trim() || '—:—',
+      draftPrice: d.price.trim() || 'Free',
+      draftGenre: d.genre,
+      more: st.more, moreLabel: st.more ? 'Hide' : 'Open',
+      toggleMore: () => this.patch('more', !st.more),
+      onWho: (e) => this.setDraft('who', e.target.value),
+      onWhere: (e) => this.setDraft('where', e.target.value),
+      onWhen: (e) => this.setDraft('when', e.target.value),
+      onPrice: (e) => this.setDraft('price', e.target.value),
+      onNote: (e) => this.setDraft('note', e.target.value),
+      ageOpts: ['All ages', '18+', '21+'].map(a => ({ label: a, on: d.ages === a, pick: () => this.setDraft('ages', a) })),
+      genreOpts: this.buckets.map(name => ({
+        name, cls: d.genre === name ? 'tag-accent' : 'tag-outline',
+        stroke: d.genre === name ? 'transparent' : 'var(--color-divider)',
+        pick: () => this.setDraft('genre', name)
+      })),
+      submit: this.sendToPress,
+
+      sampleRows,
+      sampleCountLabel: st.samples.length === 1 ? '1 sample' : st.samples.length + ' samples',
+      styleTags: st.styleTags,
+      styleOpts: this.styleOptions.map(name => {
+        const on = st.styleTags.indexOf(name) > -1;
+        return {
+          name, cls: on ? 'tag-accent' : 'tag-outline',
+          stroke: on ? 'transparent' : 'var(--color-divider)',
+          pick: () => this.toggleStyleTag(name)
+        };
+      }),
+      addSample: this.addSample,
+      hireYes: st.hireOn, hireNo: !st.hireOn,
+      setHireOn: () => this.setHireOn(true), setHireOff: () => this.setHireOn(false),
+      listenLabel: featuredPlaying ? 'Pause' : 'Listen',
+      toggleListen: () => { if (st.samples[0]) this.togglePlay(st.samples[0].id); },
+
+      goingList, savedList,
+      listSummary: goingList.length + ' going · ' + savedList.length + ' kept',
+
+      band: {
+        name: 'Bloodroot Choir', kicker: 'Band · Olneyville',
+        line: 'Post-punk quartet · 1,204 following',
+        bio: 'Formed in 2022 out of two bands that broke up the same month. Two records on Magnolia Tapes, both recorded in a night. They play about twice a month and always take a local opener.',
+        followLabel: st.follow ? 'Following' : 'Follow',
+        stroke: st.follow ? ACC : INK,
+        hireOn: st.hireOn
+      },
+      toggleFollow: () => this.patch('follow', !st.follow),
+      bandShows: [
+        { date: '28 Jul', venue: 'Dusk, Olneyville', note: 'w/ Slow Vane, Cassette Weather', price: '$12' },
+        { date: '1 Aug', venue: 'Fête Ballroom', note: 'supporting Kestrel', price: '$22' },
+        { date: '12 Sep', venue: 'Columbus Theatre', note: 'record release, seated', price: '$16' },
+        { date: '4 Oct', venue: 'Askew', note: 'w/ Iron Vespers', price: '$15' }
+      ],
+
+      stats: [{ n: '1,204', label: 'Following' }, { n: '64', label: 'Going tonight' }, { n: '3', label: 'Live listings' }],
+      yourShows: [
+        { venue: 'Dusk, Olneyville', when: 'Tonight, 9:00 PM', reach: '1,842 read it', status: 'On the bill', cls: 'tag-accent' },
+        { venue: 'Fête Ballroom', when: 'Sat 1 Aug, 8:00 PM', reach: '612 read it', status: 'On the bill', cls: 'tag-accent' },
+        { venue: 'Columbus Theatre', when: 'Sat 12 Sep, 8:00 PM', reach: 'Not sent', status: 'Draft', cls: 'tag-neutral' }
+      ],
+      settings: [
+        { label: 'Posting as', value: 'Bloodroot Choir' },
+        { label: 'Home city', value: this.props.cityName ?? 'Providence' },
+        { label: 'Notices', value: 'Shows near me, weekly' },
+        { label: 'Payouts', value: 'Not set up' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

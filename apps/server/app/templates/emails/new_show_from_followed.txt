@@ -1,0 +1,22 @@
+LIVE MSC — A listings paper for live music
+
+NEW ON THE BILL
+
+{{ artist.name }}
+You follow them, so here it is first.
+
+--------------------------------------------------------------------
+{{ event.time_label or "—" }}  {{ event.headline }}
+        {{ event.genre_label }}{% if event.venue %} · {{ event.venue.name }}{% if event.venue.neighborhood %}, {{ event.venue.neighborhood }}{% endif %}{% endif %}
+        {{ event.day_label }} · {{ event.date_long }}
+        {{ event.price_label or "—" }}{% if event.age_label %} · {{ event.age_label }}{% endif %}
+--------------------------------------------------------------------
+{% if event.short_line %}
+{{ event.short_line }}
+{% endif %}
+Read the listing:
+{{ event_url }}
+
+--
+You get this because you follow {{ artist.name }}.
+Unsubscribe: {{ unsubscribe_url }}

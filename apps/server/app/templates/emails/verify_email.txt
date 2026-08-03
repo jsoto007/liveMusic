@@ -1,0 +1,15 @@
+LIVE MSC — A listings paper for live music
+
+Confirm your email
+
+Welcome to the paper{% if user.display_name %}, {{ user.display_name }}{% endif %}. Confirm this address and you
+can keep shows, mark what you're going to, and post your own.
+
+Confirm this address:
+{{ verify_url }}
+
+The link is good for {{ ttl_hours }} hours. If it expires, ask for another from
+your account.
+
+If you didn't create this account, ignore this — nothing further will happen,
+and the address will not be used.

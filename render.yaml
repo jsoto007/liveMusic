@@ -1,0 +1,288 @@
+# Render Blueprint for Live Msc.
+#
+# Four services:
+#   live-msc-api        the Flask API (also serves the built SPA — see below)
+#   live-msc-web        the static React bundle on Render's CDN
+#   live-msc-reminders  a daily cron that mails tomorrow's shows
+#   live-msc-sweeper    a daily cron that reclaims abandoned R2 objects
+#
+# ── One origin or two? ────────────────────────────────────────────────────
+# The API sets an httpOnly refresh cookie. A cookie is only first-party if the
+# SPA and the API share an origin, so the recommended setup is:
+#
+#   • Point your domain at live-msc-web (e.g. livemsc.org)
+#   • Add a Render "rewrite" rule on that static site sending /api/* to the API
+#
+# That keeps the browser talking to one origin and the session surviving a
+# reload. The rewrite is configured below. If you instead put the API on its
+# own subdomain, set FRONTEND_URL and CORS_ORIGINS accordingly and be aware
+# that SameSite=Lax cookies across subdomains need extra care.
+#
+# ── Secrets ───────────────────────────────────────────────────────────────
+# Everything marked `sync: false` must be set by hand in the Render dashboard.
+# They are never committed. See README.md for what each one is.
+
+databases:
+  - name: live-msc-db
+    databaseName: live_msc
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+services:
+  # ── The API ────────────────────────────────────────────────────────────
+  - type: web
+    name: live-msc-api
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: apps/server
+    buildCommand: pip install -e .
+    # Migrations run before the new instance takes traffic, so a deploy can
+    # never serve code against a schema it does not have.
+    preDeployCommand: flask --app app db upgrade
+    startCommand: gunicorn wsgi:app --workers 2 --threads 4 --timeout 60 --access-logfile -
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: FLASK_ENV
+        value: production
+
+      # ── Database ──────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: live-msc-db
+          property: connectionString
+
+      # ── Rate limiting ─────────────────────────────────────────────────
+      # A shared store is REQUIRED in production: an in-memory limiter is
+      # per-process, so two gunicorn workers would silently double every
+      # published limit. Config.validate() refuses to boot without it.
+      - key: RATELIMIT_STORAGE_URI
+        fromService:
+          type: keyvalue
+          name: live-msc-cache
+          property: connectionString
+
+      # ── Secrets ───────────────────────────────────────────────────────
+      # Generated once by Render and then held. JWT_SECRET must differ from
+      # SECRET_KEY — boot fails if they match.
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET
+        generateValue: true
+
+      # ── Origins ───────────────────────────────────────────────────────
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: live-msc-web
+          property: host
+      # Where one-click unsubscribe links point. Mail providers POST these
+      # with no browser, so they must reach the API directly.
+      - key: PUBLIC_API_URL
+        fromService:
+          type: web
+          name: live-msc-api
+          property: host
+
+      # ── Cloudflare R2 ─────────────────────────────────────────────────
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      # Optional: a public CDN base for the bucket. Leave unset to serve every
+      # object through short-lived presigned GETs, which is the safer default.
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+
+      # ── Email ─────────────────────────────────────────────────────────
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Live Msc
+      # Set RESEND_API_KEY *or* the SMTP_* group, not both. Resend is easier
+      # on Render, which restricts outbound SMTP on some plans.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+
+      # ── LocationIQ ────────────────────────────────────────────────────
+      # Server-side only. Never expose this to a client.
+      - key: LOCATIONIQ_API_KEY
+        sync: false
+
+      # ── Observability ─────────────────────────────────────────────────
+      - key: SENTRY_DSN
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+
+  # ── The web app ────────────────────────────────────────────────────────
+  - type: web
+    name: live-msc-web
+    runtime: static
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @live-msc/web build
+    staticPublishPath: apps/web/dist
+    autoDeployTrigger: commit
+    # VITE_API_URL is deliberately unset: the client resolves to a relative
+    # path, the rewrite below sends /api to the API service, and the refresh
+    # cookie stays first-party. Setting it to an absolute URL would make the
+    # session cross-site and break sign-in on reload.
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://live-msc-api.onrender.com/api/*
+      # The SPA owns its own routing; every other path serves the shell.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        # Vite fingerprints these, so they can be held forever.
+        value: public, max-age=31536000, immutable
+      - path: /index.html
+        name: Cache-Control
+        # Never cached, or a deploy would not be picked up.
+        value: no-cache
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+
+  # ── Shared cache, for the rate limiter ─────────────────────────────────
+  - type: keyvalue
+    name: live-msc-cache
+    plan: free
+    region: oregon
+    ipAllowList: []  # private network only
+
+  # ── Scheduled work ─────────────────────────────────────────────────────
+  # Reminders go out mid-afternoon UTC, which is a reasonable morning across
+  # the Americas. The job's lookup window is wider than its interval, so a
+  # missed run recovers on the next one and delivery is idempotent regardless.
+  - type: cron
+    name: live-msc-reminders
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: apps/server
+    schedule: "0 15 * * *"
+    buildCommand: pip install -e .
+    startCommand: flask --app app notify reminders
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: live-msc-db
+          property: connectionString
+      - key: RATELIMIT_STORAGE_URI
+        fromService:
+          type: keyvalue
+          name: live-msc-cache
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: live-msc-api
+          envVarKey: SECRET_KEY
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: live-msc-api
+          envVarKey: JWT_SECRET
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: live-msc-web
+          property: host
+      - key: PUBLIC_API_URL
+        fromService:
+          type: web
+          name: live-msc-api
+          property: host
+      - key: MAIL_FROM_ADDRESS
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: Live Msc
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+
+  # Reclaims R2 objects from uploads that were started and never finished.
+  # Without it they accumulate silently and are billed every month.
+  - type: cron
+    name: live-msc-sweeper
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: apps/server
+    schedule: "30 4 * * *"
+    buildCommand: pip install -e .
+    startCommand: flask --app app media sweep
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      - key: FLASK_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: live-msc-db
+          property: connectionString
+      - key: RATELIMIT_STORAGE_URI
+        fromService:
+          type: keyvalue
+          name: live-msc-cache
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: live-msc-api
+          envVarKey: SECRET_KEY
+      - key: JWT_SECRET
+        fromService:
+          type: web
+          name: live-msc-api
+          envVarKey: JWT_SECRET
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false

@@ -1,0 +1,803 @@
+/* Live Msc — the application layer on top of the Classical design system.
+ *
+ * Every value here comes from a token in classical.css. If you find yourself
+ * typing a hex, a font name or a raw px the scale already carries, stop: the
+ * token exists (see CLAUDE.md §1). Colour is stroke, never fill; hairlines
+ * carry the structure; photographs go through `.plate`. */
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.masthead-inner {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-3);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.wordmark {
+  font-family: var(--font-heading);
+  /* Display sizes take the normal cut — the bigger the text, the lighter it
+     sets. Interface headings cap at semibold. */
+  font-weight: 400;
+  font-size: 38px;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 52%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.kicker-accent {
+  color: var(--color-accent-700);
+}
+
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+}
+
+.page-narrow {
+  max-width: 620px;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 34px;
+  line-height: 1.06;
+  margin: 0;
+}
+
+.page-sub {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  margin-top: var(--space-2);
+}
+
+.colophon {
+  font-size: 11px;
+  font-style: italic;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-text) 40%, transparent);
+  margin: var(--space-8) 0 0;
+}
+
+/* ── Primary navigation ─────────────────────────────────────────────────── */
+
+.mainnav {
+  display: flex;
+  gap: var(--space-4);
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 0 var(--space-4) var(--space-2);
+  overflow-x: auto;
+}
+
+.mainnav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 0;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.mainnav a:hover {
+  color: var(--color-accent-700);
+}
+
+.mainnav a[aria-current="page"] {
+  color: var(--color-accent-700);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ── Listing rows — the heart of the paper ──────────────────────────────── */
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-6) 0 4px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: var(--font-heading-weight);
+}
+
+/* A proper name sitting in a section-head row — a band's, not a section
+   label's. It must not inherit the uppercase small-caps treatment above. */
+.section-head h2.proper-noun {
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  text-transform: none;
+}
+
+.section-count {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The heavier rule under a section head; row rules below it are hairlines. */
+.rule-strong {
+  height: 1px;
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+}
+
+.listing {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 78px 1fr auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.listing:hover {
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+}
+
+.listing:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.listing-time {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+}
+
+.listing-body {
+  min-width: 0;
+}
+
+.listing-artist {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: var(--font-heading-weight);
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.listing-meta {
+  display: block;
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  margin-top: 2px;
+}
+
+.listing-note {
+  display: block;
+  font-size: 12px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--color-text) 46%, transparent);
+  margin-top: 4px;
+}
+
+.listing-right {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.listing-price {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.listing-ages {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.italic {
+  font-style: italic;
+}
+
+/* ── Featured listing ───────────────────────────────────────────────────── */
+
+.featured-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.featured-title {
+  font-family: var(--font-heading);
+  font-size: 27px;
+  line-height: 1.1;
+  margin: 0;
+  font-weight: 400;
+}
+
+.featured-time {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Justified body copy at a comfortable measure — the paper's default voice. */
+.prose {
+  font-size: 13.5px;
+  line-height: 1.75;
+  text-align: justify;
+  hyphens: auto;
+  color: color-mix(in srgb, var(--color-text) 82%, transparent);
+}
+
+.plate-frame {
+  border-radius: 2px;
+  overflow: hidden;
+  width: 100%;
+  /* A plate is a band across the column, not a hero. A fixed height rather
+     than an aspect-ratio: pairing `aspect-ratio` with a `max-height` makes the
+     browser narrow the *width* to keep the ratio, which pulls the mat off the
+     measure. The prototype runs about 2.2:1 at phone width; this holds that
+     proportion and stops growing on a wide desktop column. */
+  height: clamp(180px, 30vw, 260px);
+  display: grid;
+  place-items: center;
+  background: var(--color-surface);
+}
+
+.plate-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.plate-empty {
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+/* ── Filters ────────────────────────────────────────────────────────────── */
+
+.filter-row {
+  display: flex;
+  gap: 6px;
+  padding: var(--space-3) 0;
+  overflow-x: auto;
+}
+
+.chip {
+  flex: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 5px 13px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-text);
+}
+
+.chip:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+/* Selected reads as an accent outline, not a filled pill — colour is stroke. */
+.chip[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent-700);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+}
+
+.search-field:focus-within {
+  border-color: var(--color-accent);
+}
+
+.search-field .input {
+  border: 0;
+  padding-inline: 0;
+}
+
+.search-field svg {
+  flex: none;
+  opacity: 0.5;
+}
+
+/* ── Address autocomplete ───────────────────────────────────────────────── */
+
+.address-field {
+  position: relative;
+}
+
+.address-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  padding-left: var(--space-3);
+}
+
+.address-input:focus-within {
+  border-color: var(--color-accent);
+}
+
+.address-input svg {
+  flex: none;
+  opacity: 0.5;
+}
+
+.address-input .input {
+  border: 0;
+  padding-inline: 0;
+}
+
+/* The dropdown is the one place elevation is used in the app — it has to sit
+   above the following field, and a hairline alone will not read as floating. */
+.suggestions {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  right: 0;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.suggestion {
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.suggestion:last-child {
+  border-bottom: 0;
+}
+
+.suggestion.is-highlighted {
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.suggestion-name {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.suggestion-detail {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  margin-top: 2px;
+}
+
+/* ── The map ────────────────────────────────────────────────────────────── */
+
+.mapframe {
+  position: relative;
+  height: 380px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* A drawn grid rather than a photographic tile — the map is set, not shot. */
+.mapframe-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(0deg, var(--color-divider) 0 1px, transparent 1px 30px),
+    repeating-linear-gradient(90deg, var(--color-divider) 0 1px, transparent 1px 30px);
+  opacity: 0.55;
+}
+
+.mappin {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  background: var(--color-bg);
+  border: 1px solid color-mix(in srgb, var(--color-text) 45%, transparent);
+  color: color-mix(in srgb, var(--color-text) 70%, transparent);
+  box-shadow: var(--shadow-sm);
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  transform: translate(-50%, -50%);
+}
+
+.mappin:hover,
+.mappin[aria-current="true"] {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* Neighbourhood names set on the plan itself, in the heading face at small
+   size — the way a printed map letters its districts. */
+.maplabel {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--color-text) 42%, transparent);
+  pointer-events: none;
+}
+
+.mapscale {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-divider);
+  padding: 5px 9px;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.mapscale span {
+  display: block;
+  width: 26px;
+  height: 1px;
+  background: var(--color-text);
+}
+
+/* ── Detail pages ───────────────────────────────────────────────────────── */
+
+.detail-title {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  margin: var(--space-2) 0 0;
+}
+
+.detail-support {
+  font-family: var(--font-heading);
+  font-style: italic;
+  font-size: 17px;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  margin-top: var(--space-2);
+}
+
+.spec-table th {
+  width: 120px;
+  padding-left: 0;
+}
+
+.spec-table td {
+  padding-right: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.actions .btn {
+  flex: 1;
+  min-width: 150px;
+}
+
+/* A toggle is drawn in ink until it is engaged, then it moves to the accent —
+   it never becomes a fill. Matches the prototype's going/follow buttons. */
+.btn-toggle {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.btn-toggle:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.btn-on,
+.btn-toggle.btn-on {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.btn-on:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-md);
+}
+
+.stat {
+  padding: var(--space-3) var(--space-2);
+  text-align: center;
+  border-right: 1px solid var(--color-divider);
+}
+
+.stat:last-child {
+  border-right: 0;
+}
+
+.stat-n {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+  margin-top: 6px;
+}
+
+/* ── Sound samples ──────────────────────────────────────────────────────── */
+
+.sample {
+  display: grid;
+  grid-template-columns: 34px 1fr auto auto;
+  gap: var(--space-2);
+  align-items: center;
+  border-bottom: 1px solid var(--color-divider);
+  padding: var(--space-3) 0;
+}
+
+.sample-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.sample-duration {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 10px;
+  margin-right: 6px;
+}
+
+.eq i {
+  display: block;
+  width: 2px;
+  height: 100%;
+  background: var(--color-accent);
+  transform-origin: bottom;
+  animation: eqBar 0.9s ease-in-out infinite;
+}
+
+.eq i:nth-child(2) { animation-delay: 0.15s; }
+.eq i:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes eqBar {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+
+/* Honour a reader who has asked the interface to stop moving. */
+@media (prefers-reduced-motion: reduce) {
+  .eq i {
+    animation: none;
+    transform: scaleY(0.7);
+  }
+}
+
+.playing-label {
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* ── Forms and feedback ─────────────────────────────────────────────────── */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.form-note {
+  font-size: 11px;
+  font-style: italic;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  margin-top: 4px;
+}
+
+/* Errors are drawn, not filled — a left rule in the accent's deep step. */
+.notice {
+  border: 1px solid var(--color-divider);
+  border-left: 2px solid var(--color-accent);
+  padding: var(--space-3);
+  font-size: 13px;
+  border-radius: var(--radius-sm);
+}
+
+.notice-error {
+  border-left-color: var(--color-accent-700);
+  color: var(--color-accent-900);
+  background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+}
+
+.empty {
+  margin: var(--space-8) 0;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-text) 50%, transparent);
+}
+
+.spinner {
+  margin: var(--space-8) auto;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: color-mix(in srgb, var(--color-text) 45%, transparent);
+}
+
+/* Visible only to assistive technology — used for live regions and the
+   skip link's target labelling. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-accent);
+  padding: var(--space-2) var(--space-3);
+  z-index: 20;
+}
+
+.skip-link:focus {
+  left: var(--space-3);
+  top: var(--space-3);
+}
+
+/* ── Narrow screens ─────────────────────────────────────────────────────── */
+
+@media (max-width: 620px) {
+  .listing {
+    grid-template-columns: 62px 1fr auto;
+    gap: var(--space-2);
+  }
+
+  .wordmark {
+    font-size: 30px;
+  }
+
+  .detail-title {
+    font-size: 32px;
+  }
+
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .actions .btn {
+    min-width: 0;
+  }
+}

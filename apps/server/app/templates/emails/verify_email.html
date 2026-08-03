@@ -1,0 +1,29 @@
+{% extends "emails/_layout.html" %}
+{% set title = "Confirm your email" %}
+{% set preheader = "One tap and you're on the list." %}
+
+{% block content %}
+  <h1 style="margin:0 0 16px; font-family:'Cormorant Garamond',Cormorant,Garamond,Georgia,serif;
+             font-weight:400; font-size:30px; line-height:1.1; color:#201f1d;">
+    Confirm your email
+  </h1>
+
+  <p style="margin:0 0 4px;">
+    Welcome to the paper{% if user.display_name %}, {{ user.display_name }}{% endif %}.
+    Confirm this address and you can keep shows, mark what you&rsquo;re going to,
+    and post your own.
+  </p>
+
+  {% with url = verify_url, label = "Confirm this address" %}
+    {% include "emails/_button.html" %}
+  {% endwith %}
+
+  <p style="margin:0; font-size:13px; color:rgba(32,31,29,0.6);">
+    The link is good for {{ ttl_hours }} hours. If it expires, ask for another
+    from your account.
+  </p>
+  <p style="margin:12px 0 0; font-size:13px; color:rgba(32,31,29,0.6);">
+    If you didn&rsquo;t create this account, ignore this — nothing further will
+    happen, and the address will not be used.
+  </p>
+{% endblock %}

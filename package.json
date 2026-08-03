@@ -1,0 +1,17 @@
+{
+  "name": "live-msc",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test && pnpm test:server",
+    "test:server": "cd apps/server && ./.venv/bin/python -m pytest -q"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0"
+  }
+}

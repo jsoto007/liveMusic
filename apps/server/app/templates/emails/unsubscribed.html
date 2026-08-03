@@ -1,0 +1,71 @@
+{# The page a one-click unsubscribe lands on.
+
+   Self-contained: a mail provider POSTs this URL with no browser and no
+   JavaScript, so both the form and the confirmation have to be in the markup.
+   Styles are inline for the same reason the emails' are — there is no
+   stylesheet to link to here.
+
+   Three states. `confirm` is what a human sees on GET, because GET must not
+   change anything: mail scanners fetch every link in a message, and a GET
+   that unsubscribed would have them doing it silently on the reader's behalf. #}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Live Msc</title>
+  </head>
+  <body style="margin:0; background:#f3f2f2;
+               font-family:Lora,Georgia,serif; color:#201f1d;">
+    <div style="max-width:520px; margin:0 auto; padding:64px 24px;">
+      <div style="font-family:'Cormorant Garamond',Cormorant,Garamond,Georgia,serif;
+                  font-size:38px; line-height:1; letter-spacing:0.01em;">Live Msc</div>
+      <div style="font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
+                  color:rgba(32,31,29,0.52); margin-top:8px;">
+        A listings paper for live music
+      </div>
+      <div style="height:1px; background:rgba(32,31,29,0.16); margin:20px 0 28px;"></div>
+
+      <p style="font-size:16px; line-height:1.7; margin:0 0 20px;">{{ message }}</p>
+
+      {% if state == "confirm" %}
+        {# The button is the only thing that unsubscribes. #}
+        <form method="post" action="/api/v1/email/unsubscribe?user={{ user_id | urlencode }}&amp;sig={{ signature | urlencode }}">
+          <button type="submit"
+                  style="font-family:'Cormorant Garamond',Cormorant,Garamond,Georgia,serif;
+                         font-size:15px; color:#7d5411; background:transparent;
+                         border:1px solid #b68235; border-radius:4px;
+                         padding:11px 22px; cursor:pointer;">
+            Yes, unsubscribe me
+          </button>
+        </form>
+        <p style="font-size:13px; line-height:1.7; color:rgba(32,31,29,0.6); margin:20px 0 0;">
+          Password resets and other account mail are not notices and will keep
+          reaching you either way.
+        </p>
+      {% elif state == "done" %}
+        <p style="font-size:13px; line-height:1.7; color:rgba(32,31,29,0.6); margin:0 0 24px;">
+          Password resets and other account mail still reach you — those are not
+          notices. You can turn individual notices back on from your account at
+          any time.
+        </p>
+      {% endif %}
+
+      {% if site_url and state != "confirm" %}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="border:1px solid #b68235; border-radius:4px;">
+              <a href="{{ site_url }}"
+                 style="display:inline-block; padding:11px 22px;
+                        font-family:'Cormorant Garamond',Cormorant,Garamond,Georgia,serif;
+                        font-size:15px; color:#7d5411; text-decoration:none;">
+                Back to the bill
+              </a>
+            </td>
+          </tr>
+        </table>
+      {% endif %}
+    </div>
+  </body>
+</html>

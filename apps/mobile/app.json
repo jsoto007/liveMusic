@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Live Msc",
+    "slug": "live-msc",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "livemsc",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "backgroundColor": "#f3f2f2",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.livemsc.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Live Msc uses your location to show the shows nearest you. It is never stored or shared.",
+        "NSMicrophoneUsageDescription": "Not used.",
+        "NSPhotoLibraryUsageDescription": "Choose a poster or band photo to attach to your listing."
+      }
+    },
+    "android": {
+      "package": "org.livemsc.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#f3f2f2"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "plugins": ["expo-secure-store", "expo-font"],
+    "extra": {
+      "apiUrl": "http://127.0.0.1:5001"
+    }
+  }
+}
