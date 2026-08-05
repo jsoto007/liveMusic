@@ -181,8 +181,9 @@ describe("uploadDirect", () => {
 
   const ticket = {
     upload_id: "up1",
-    url: "https://account.r2.cloudflarestorage.com/bucket",
-    fields: { key: "artists/audio/a1/abc.mp3", "Content-Type": "audio/mpeg" },
+    url: "https://account.r2.cloudflarestorage.com/bucket/artists/audio/a1/abc.mp3",
+    key: "artists/audio/a1/abc.mp3",
+    headers: { "Content-Type": "audio/mpeg" },
     max_bytes: 1000,
     expires_at: "2026-01-01T00:00:00Z",
   };
@@ -197,7 +198,7 @@ describe("uploadDirect", () => {
   it("sends the file to R2, not to the API", async () => {
     fetchMock
       .mockResolvedValueOnce(ok(ticket))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
       .mockResolvedValueOnce(ok({ sample: { id: "s1" } }));
 
     const api = new ApiClient({ baseUrl: "" });
@@ -205,26 +206,23 @@ describe("uploadDirect", () => {
 
     const storageCall = fetchMock.mock.calls[1]!;
     expect(storageCall[0]).toBe(ticket.url);
-    expect(storageCall[1].body).toBeInstanceOf(FormData);
+    expect(storageCall[1].method).toBe("PUT");
+    expect(storageCall[1].body).toBeInstanceOf(Blob);
     // Our bearer token must never be sent to a third-party origin.
     expect(storageCall[1].credentials).toBe("omit");
   });
 
-  it("puts the file last in the form, after every policy field", async () => {
+  it("PUTs with the exact headers the server signed, notably Content-Type", async () => {
     fetchMock
       .mockResolvedValueOnce(ok(ticket))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }))
       .mockResolvedValueOnce(ok({ sample: { id: "s1" } }));
 
     const api = new ApiClient({ baseUrl: "" });
     await uploadDirect(api, request, new Blob(["audio"]));
 
-    const form = fetchMock.mock.calls[1]![1].body as FormData;
-    const keys = [...form.keys()];
-    // S3-compatible storage silently rejects a POST whose file precedes the
-    // policy fields.
-    expect(keys[keys.length - 1]).toBe("file");
-    expect(keys).toContain("key");
+    const storageCall = fetchMock.mock.calls[1]!;
+    expect(storageCall[1].headers).toEqual(ticket.headers);
   });
 
   it("abandons the ticket when the storage upload fails", async () => {

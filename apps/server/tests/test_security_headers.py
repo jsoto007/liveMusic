@@ -39,6 +39,36 @@ def test_csp_allows_the_browser_to_upload_directly_to_r2(client, app):
     assert app.config["R2_ENDPOINT_URL"]
 
 
+def test_csp_allows_the_map_basemap(client):
+    """The Plan renders a real basemap; its tiles are cross-origin images.
+
+    Left out of ``img-src`` the map draws as an empty grey frame and the only
+    trace is a CSP violation in a console nobody is watching.
+    """
+    from app.security import MAP_TILE_ORIGINS
+
+    csp = client.get("/api/v1/events").headers["Content-Security-Policy"]
+    img = [part for part in csp.split(";") if part.strip().startswith("img-src")][0]
+    for origin in MAP_TILE_ORIGINS:
+        assert origin in img, csp
+
+
+def test_the_tile_host_cannot_be_used_as_a_fetch_target(client):
+    """Tiles are images and nothing more.
+
+    A tile host in ``connect-src`` would widen the policy from "may render
+    pictures from here" to "may send data here", which is the directive that
+    matters for exfiltration. This asserts the narrower grant was not copied
+    across by habit.
+    """
+    from app.security import MAP_TILE_ORIGINS
+
+    csp = client.get("/api/v1/events").headers["Content-Security-Policy"]
+    connect = [part for part in csp.split(";") if part.strip().startswith("connect-src")][0]
+    for origin in MAP_TILE_ORIGINS:
+        assert origin not in connect, csp
+
+
 def test_a_bare_hostname_is_normalised_to_an_origin(app):
     """Render's `fromService: property: host` yields a bare hostname. Left as
     is, every origin comparison and every emailed link would be wrong."""

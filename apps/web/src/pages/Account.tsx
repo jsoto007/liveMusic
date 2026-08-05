@@ -1,17 +1,17 @@
 /**
  * Your account — and, if you hold one, your band's page.
  *
- * The sound-sample uploader is the one place the direct-to-R2 flow is visible
- * to a reader: pick a file, it goes straight to storage, and only then does a
- * row appear.
+ * The sound-sample uploader shows the direct-to-R2 flow plainly: pick a file,
+ * it goes straight to storage, and only then does a row appear. The band photo
+ * uses the shared `<ImageUpload>`, the same control the show poster uses — one
+ * implementation, so the two cannot drift apart again.
  */
 
 import { useCallback, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ImagePlus, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import {
   ACCEPTED_AUDIO_TYPES,
-  ACCEPTED_IMAGE_TYPES,
   inferContentType,
   uploadDirect,
   type Artist,
@@ -22,6 +22,7 @@ import {
 } from "@live-msc/shared";
 
 import { AddressField } from "../components/AddressField";
+import { ImageUpload } from "../components/ImageUpload";
 import { Empty, Notice, Plate, Rule, SectionHead, Spinner } from "../components/Primitives";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
@@ -112,9 +113,7 @@ function BandPanel({ artist, onChanged }: { artist: Artist; onChanged: () => Pro
   const [hireOn, setHireOn] = useState(artist.available_for_hire);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [photoUploading, setPhotoUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement | null>(null);
-  const photoInput = useRef<HTMLInputElement | null>(null);
 
   const detail = useResource<{ artist: Artist }>(
     () => api.get<{ artist: Artist }>(`/api/v1/artists/${artist.id}`),
@@ -179,39 +178,6 @@ function BandPanel({ artist, onChanged }: { artist: Artist; onChanged: () => Pro
     [artist.id, detail, onChanged],
   );
 
-  const setPhoto = useCallback(
-    async (file: File) => {
-      setError(null);
-      const contentType = inferContentType(file.name, file.type);
-      if (!contentType || !ACCEPTED_IMAGE_TYPES.includes(contentType as never)) {
-        setError("That is not an image format we accept.");
-        return;
-      }
-
-      setPhotoUploading(true);
-      try {
-        await uploadDirect<{ artist: Artist }>(
-          api,
-          {
-            purpose: "artist_photo",
-            targetId: artist.id,
-            contentType,
-            sizeBytes: file.size,
-          },
-          file,
-        );
-        detail.reload();
-        await onChanged();
-      } catch (uploadError) {
-        setError(uploadError instanceof Error ? uploadError.message : "The upload failed.");
-      } finally {
-        setPhotoUploading(false);
-        if (photoInput.current) photoInput.current.value = "";
-      }
-    },
-    [artist.id, detail, onChanged],
-  );
-
   const removeSample = useCallback(
     async (sampleId: string) => {
       const result = await api.delete(`/api/v1/artists/${artist.id}/samples/${sampleId}`);
@@ -245,30 +211,18 @@ function BandPanel({ artist, onChanged }: { artist: Artist; onChanged: () => Pro
           alt={`${artist.name}`}
           placeholder="band photo — press shot, or the four of you outside the practice room"
         />
-        <input
-          ref={photoInput}
-          type="file"
-          accept={ACCEPTED_IMAGE_TYPES.join(",")}
-          className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void setPhoto(file);
+        <ImageUpload
+          purpose="artist_photo"
+          targetId={artist.id}
+          hasImage={Boolean(detail.data?.artist.photo_url)}
+          addLabel="Add a band photo"
+          replaceLabel="Replace the photo"
+          onUploaded={async () => {
+            detail.reload();
+            await onChanged();
           }}
+          onError={setError}
         />
-        <button
-          type="button"
-          className="btn btn-secondary btn-block"
-          onClick={() => photoInput.current?.click()}
-          disabled={photoUploading}
-          style={{ marginTop: "var(--space-2)" }}
-        >
-          <ImagePlus size={15} aria-hidden />
-          {photoUploading
-            ? "Uploading…"
-            : detail.data?.artist.photo_url
-              ? "Replace the photo"
-              : "Add a band photo"}
-        </button>
       </div>
 
       <div className="stat-grid" style={{ marginTop: "var(--space-4)" }}>

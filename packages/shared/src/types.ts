@@ -123,6 +123,10 @@ export interface EventListing {
   age_label: string;
   short_line: string | null;
   poster_url: string | null;
+  /** Set only when the poster came from an openly-licensed source this app
+   * attached itself (e.g. Wikimedia Commons) rather than a band's own
+   * upload — CC BY / CC BY-SA require a visible credit wherever shown. */
+  poster_credit: string | null;
   venue: Venue | null;
   artist: Pick<Artist, "id" | "name" | "slug"> | null;
   saved: boolean;
@@ -138,6 +142,13 @@ export interface EventListing {
   ticket_url?: string | null;
   published_at?: string | null;
   cancelled?: boolean;
+  /**
+   * Whether this reader may attach a poster to this show. Decided by the
+   * server from the authenticated user — never inferred here from the artist
+   * id, which the client also holds but cannot verify ownership of. Absent on
+   * list responses, and `undefined` is treated as "no".
+   */
+  can_manage?: boolean;
   lineup?: LineupSlot[];
 }
 
@@ -186,9 +197,11 @@ export interface EmailPreferences {
 
 export interface UploadTicket {
   upload_id: string;
-  /** R2's endpoint. The client posts the file here, not to the API. */
+  /** R2's endpoint. The client PUTs the file body here, not to the API. */
   url: string;
-  fields: Record<string, string>;
+  key: string;
+  /** Headers to send with the PUT, exactly as given — Content-Type is signed. */
+  headers: Record<string, string>;
   max_bytes: number;
   expires_at: string;
 }

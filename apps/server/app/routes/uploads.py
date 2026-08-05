@@ -1,8 +1,10 @@
 """Direct-to-R2 uploads.
 
-The API never touches file bytes. It issues a narrowly-scoped presigned POST,
+The API never touches file bytes. It issues a narrowly-scoped presigned PUT,
 then verifies with a ``HEAD`` that what landed matches what it signed for
-before any durable row is written. See CLAUDE.md §4 for why POST and not PUT.
+before any durable row is written. See CLAUDE.md §4: R2 does not implement
+presigned POST, so PUT is the only direct-upload path available, and the size
+cap is enforced entirely at the HEAD check rather than by a POST condition.
 
 The threat model this is written against:
 
@@ -10,9 +12,9 @@ The threat model this is written against:
   re-derived from the authenticated user at *both* issue and completion, and
   the target is pinned on the ticket so it cannot be swapped in between.
 * A caller choosing its own object key — it cannot; the server mints one.
-* A caller declaring a small size and pushing a huge file — the
-  ``content-length-range`` condition makes R2 reject it, and the HEAD check
-  catches anything that still slips through.
+* A caller declaring a small size and pushing a huge file — PUT cannot bound
+  this at signing time, so the HEAD check at completion is the only gate;
+  an oversized object is deleted rather than attached to a durable row.
 * A caller completing someone else's ticket — tickets are scoped to the user.
 * A caller replaying a completed ticket — completion is one-shot.
 """
@@ -22,7 +24,12 @@ from datetime import timedelta
 from flask import Blueprint, current_app, request
 from flask_limiter.util import get_remote_address
 
-from ..auth_helpers import get_owned_artist, load_current_user, require_auth
+from ..auth_helpers import (
+    get_owned_artist,
+    load_current_user,
+    may_manage_event_media,
+    require_auth,
+)
 from ..extensions import db, limiter
 from ..models import (
     AudioSample,
@@ -122,9 +129,7 @@ def _authorize_target(purpose: UploadPurpose, target_id):
     event = db.session.get(Event, target_id)
     if event is None:
         return None, not_found
-    user = load_current_user()
-    owns_artist = event.artist_id is not None and get_owned_artist(event.artist_id) is not None
-    if not owns_artist and event.created_by_user_id != user.id:
+    if not may_manage_event_media(event, load_current_user()):
         return None, not_found
     return event, None
 
@@ -220,8 +225,8 @@ def create_upload():
     # usable — bytes could be pushed into the bucket after the row that tracks
     # them was already closed, leaving an object nothing would ever reclaim.
     ticket_ttl = current_app.config["UPLOAD_TICKET_TTL_SECONDS"]
-    presigned = R2Storage.generate_presigned_post(key, content_type, cap, expires_in=ticket_ttl)
-    if presigned is None:
+    url = R2Storage.generate_presigned_put(key, content_type, expires_in=ticket_ttl)
+    if url is None:
         return error(
             "STORAGE_UNAVAILABLE",
             "Uploads are temporarily unavailable. Please try again later.",
@@ -244,10 +249,13 @@ def create_upload():
     return ok(
         {
             "upload_id": str(ticket.id),
-            # The client posts a multipart form to `url` containing every entry
-            # of `fields`, then the file itself, last.
-            "url": presigned["url"],
-            "fields": presigned["fields"],
+            # The client PUTs the raw file body to `url` with `headers` set
+            # exactly as given — notably Content-Type, which the signature
+            # pins, so sending a different value fails the signature rather
+            # than silently landing as the wrong type.
+            "url": url,
+            "key": key,
+            "headers": {"Content-Type": content_type},
             "max_bytes": cap,
             "expires_at": ticket.expires_at.isoformat(),
         },
@@ -309,7 +317,8 @@ def complete_upload(upload_id):
 
     size_bytes = head.get("size_bytes") or 0
     if size_bytes <= 0 or size_bytes > ticket.max_bytes:
-        # Belt and braces behind the content-length-range condition.
+        # The only size gate there is — PUT carries no content-length-range
+        # condition for R2 to enforce, so this HEAD check is it.
         ticket.status = UploadStatus.ABANDONED
         if R2Storage.delete_object(ticket.object_key):
             ticket.swept_at = utcnow()
@@ -416,6 +425,9 @@ def _attach_event_poster(ticket: MediaUpload, event):
     locked = db.session.get(Event, event.id, with_for_update=True)
     previous_key = locked.poster_key
     locked.poster_key = ticket.object_key
+    # A fresh upload is the band's own photo, not whatever attribution the
+    # poster it replaces might have carried (see the field's docstring).
+    locked.poster_credit = None
     db.session.flush()
     _displace(previous_key, ticket.object_key)
     return {"event": serialize_event(locked, detail=True)}, None

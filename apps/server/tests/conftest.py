@@ -178,13 +178,9 @@ def stub_r2(monkeypatch):
 
     state = {"objects": {}, "signed": [], "deleted": []}
 
-    def _presigned_post(key, content_type, max_bytes, expires_in=None):  # noqa: ARG001
-        state["signed"].append({"key": key, "content_type": content_type,
-                                "max_bytes": max_bytes})
-        return {
-            "url": "https://accountid.r2.cloudflarestorage.com/test-bucket",
-            "fields": {"key": key, "Content-Type": content_type},
-        }
+    def _presigned_put(key, content_type, expires_in=None):  # noqa: ARG001
+        state["signed"].append({"key": key, "content_type": content_type})
+        return f"https://accountid.r2.cloudflarestorage.com/test-bucket/{key}"
 
     def _head(key):
         return state["objects"].get(key)
@@ -198,7 +194,7 @@ def stub_r2(monkeypatch):
         return f"https://signed.example/{key}?sig=stub"
 
     monkeypatch.setattr(
-        r2_storage.R2Storage, "generate_presigned_post", staticmethod(_presigned_post)
+        r2_storage.R2Storage, "generate_presigned_put", staticmethod(_presigned_put)
     )
     monkeypatch.setattr(r2_storage.R2Storage, "head_object", staticmethod(_head))
     monkeypatch.setattr(r2_storage.R2Storage, "delete_object", staticmethod(_delete))

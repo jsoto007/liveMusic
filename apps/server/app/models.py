@@ -492,6 +492,13 @@ class Event(db.Model):
     short_line = sa.Column(sa.String(300), nullable=True)
     blurb = sa.Column(sa.Text, nullable=True)
     poster_key = sa.Column(sa.String(400), nullable=True)
+    # Set only for a poster this app attached itself from an openly-licensed
+    # source (see scripts/seed_real_nyc.py) rather than a band's own upload.
+    # CC BY / CC BY-SA require a visible credit wherever the image is shown,
+    # so this travels with poster_key and is cleared whenever poster_key
+    # changes via the normal upload path — a band's own photo has no Commons
+    # attribution to inherit from whatever the poster used to be.
+    poster_credit = sa.Column(sa.Text, nullable=True)
 
     status = sa.Column(
         pg_enum(EventStatus, "event_status"), nullable=False, default=EventStatus.DRAFT,

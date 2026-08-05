@@ -104,18 +104,26 @@ class R2Storage:
     # ── Upload ─────────────────────────────────────────────────────────────
 
     @staticmethod
-    def generate_presigned_post(key: str, content_type: str, max_bytes: int,
-                                expires_in: int | None = None) -> dict | None:
-        """A presigned POST the client submits the file directly to.
+    def generate_presigned_put(key: str, content_type: str,
+                               expires_in: int | None = None) -> str | None:
+        """A presigned PUT URL the client uploads the file body to directly.
 
-        POST rather than PUT because only POST carries a
-        ``content-length-range`` condition, so R2 itself rejects an oversized
-        body. A presigned PUT cannot bound the size: a client could declare
-        10 MB and push 10 GB, and the first the server would hear of it is the
-        storage bill.
+        Not POST: R2 does not implement the S3 POST-policy API at all — it
+        answers a presigned POST with ``501 NotImplemented`` regardless of
+        credentials. PUT is the only direct-upload path R2 actually supports.
 
-        The conditions also pin the exact key and content type, so a signature
-        issued for one object cannot be replayed to write another.
+        That costs us the ``content-length-range`` condition POST would have
+        carried, so PUT cannot make oversized bytes bounce off R2 itself. The
+        size cap is enforced the same way a content-type swap already is: by
+        ``head_object`` at completion, which is the only point the server
+        learns what actually landed. An oversized object is deleted rather
+        than trusted, so the worst case is a wasted upload, never a stored
+        one.
+
+        Signing ``ContentType`` pins it into the canonical request: a client
+        that PUTs with a different ``Content-Type`` header fails the
+        signature outright, so the object still cannot land as a type the
+        server never agreed to.
         """
         client = build_client()
         if client is None:
@@ -124,18 +132,13 @@ class R2Storage:
         config = _config()
         ttl = expires_in or config["R2_SIGNED_URL_TTL_SECONDS"]
         try:
-            return client.generate_presigned_post(
-                Bucket=config["R2_BUCKET"],
-                Key=key,
-                Fields={"Content-Type": content_type},
-                Conditions=[
-                    {"Content-Type": content_type},
-                    ["content-length-range", 1, max_bytes],
-                ],
+            return client.generate_presigned_url(
+                "put_object",
+                Params={"Bucket": config["R2_BUCKET"], "Key": key, "ContentType": content_type},
                 ExpiresIn=ttl,
             )
         except (ClientError, BotoCoreError) as exc:
-            current_app.logger.error("R2 presigned POST failed for %s: %s", key, exc)
+            current_app.logger.error("R2 presigned PUT failed for %s: %s", key, exc)
             return None
 
     @staticmethod

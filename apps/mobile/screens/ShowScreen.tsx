@@ -79,6 +79,7 @@ export function ShowScreen() {
         placeholder="show poster"
         accessibilityLabel={`Poster for ${event.headline}`}
       />
+      {event.poster_credit ? <Text style={styles.plateCredit}>{event.poster_credit}</Text> : null}
 
       <View style={{ paddingTop: space.s4 }}>
         <Kicker accent>
@@ -173,6 +174,12 @@ export function ShowScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   content: { paddingHorizontal: 20, paddingTop: space.s4, paddingBottom: space.s8 },
+  plateCredit: {
+    fontFamily: fonts.bodyItalic,
+    fontSize: 11,
+    color: ink.faint,
+    marginTop: space.s1,
+  },
   support: {
     fontFamily: fonts.bodyItalic,
     fontSize: 16,

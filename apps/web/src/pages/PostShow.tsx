@@ -10,6 +10,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
 import {
+  ACCEPTED_IMAGE_TYPES,
   AGE_OPTIONS,
   GENRES,
   inferContentType,
@@ -68,6 +69,9 @@ export function PostShowPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState<EventListing | null>(null);
+  // Kept apart from `error`: the listing itself succeeded, and colouring the
+  // whole confirmation as a failure would read as "the show did not post".
+  const [posterNote, setPosterNote] = useState<string | null>(null);
 
   if (!user) {
     return (
@@ -90,6 +94,14 @@ export function PostShowPage() {
           It&rsquo;s on the bill
         </h1>
         <p className="listing-meta">Set into the listings and pushed to everyone following you.</p>
+        {/* The poster is the one part of this that can fail on its own. It is
+            reported here, on the screen that also carries the link to the page
+            where the band can put it right. */}
+        {posterNote ? (
+          <div style={{ marginTop: "var(--space-4)", textAlign: "left" }}>
+            <Notice>{posterNote}</Notice>
+          </div>
+        ) : null}
         <div style={{ marginTop: "var(--space-6)" }}>
           <button
             type="button"
@@ -103,6 +115,8 @@ export function PostShowPage() {
             className="btn btn-ghost btn-block"
             onClick={() => {
               setPosted(null);
+              setPosterNote(null);
+              setPoster(null);
               setHeadline("");
               setNote("");
             }}
@@ -164,10 +178,19 @@ export function PostShowPage() {
       const event = created.data.event;
 
       // The poster is a separate, optional step: a failed image upload must
-      // not lose the listing the band just wrote.
+      // not lose the listing the band just wrote. What it must not do either
+      // is fail quietly — a band that chose a file and is told nothing has no
+      // reason to think the poster is missing until someone else notices.
       if (poster) {
         const contentType = inferContentType(poster.name, poster.type);
-        if (contentType) {
+        if (!contentType) {
+          // Previously this branch did nothing at all: an unrecognised
+          // extension meant the file was dropped without a word.
+          setPosterNote(
+            "The show is posted. That file was not an image format we recognise — " +
+              "add a JPEG, PNG, WebP or AVIF from the show's page.",
+          );
+        } else {
           try {
             await uploadDirect(api, {
               purpose: "event_poster",
@@ -175,8 +198,13 @@ export function PostShowPage() {
               contentType,
               sizeBytes: poster.size,
             }, poster);
-          } catch {
-            setError("The show is posted, but the poster did not upload. You can add it later.");
+          } catch (uploadError) {
+            // The server's own message is shown rather than a generic one:
+            // "uploads are temporarily unavailable" and "that file is too
+            // large" want different things from the reader.
+            const reason =
+              uploadError instanceof Error ? uploadError.message : "The upload failed.";
+            setPosterNote(`The show is posted, but the poster did not upload. ${reason}`);
           }
         }
       }
@@ -261,6 +289,29 @@ export function PostShowPage() {
           />
         </div>
 
+        {/* The poster used to live inside "Add the details", folded shut by
+            default, so most bands never found it and shows went up bare. A
+            picture is the first thing a reader looks at in a listing; it
+            belongs in the form proper. */}
+        <div className="field">
+          <label htmlFor="poster">Poster</label>
+          <input
+            id="poster"
+            className="input"
+            type="file"
+            // The one allowlist, from the shared package — the server checks
+            // the same set and a divergent literal here would only produce a
+            // file picker that offers formats the upload then refuses.
+            accept={ACCEPTED_IMAGE_TYPES.join(",")}
+            onChange={(e) => setPoster(e.target.files?.[0] ?? null)}
+          />
+          <p className="form-note">
+            {poster
+              ? `${poster.name} — uploaded straight to storage once the show is posted.`
+              : "Optional. Uploaded straight to storage — it never passes through our servers."}
+          </p>
+        </div>
+
         <div className="two-column">
           <div className="field">
             <label htmlFor="date">Date</label>
@@ -302,19 +353,6 @@ export function PostShowPage() {
 
       {showMore ? (
         <div className="stack" style={{ paddingTop: "var(--space-4)" }}>
-          <div className="field">
-            <label htmlFor="poster">Poster</label>
-            <input
-              id="poster"
-              className="input"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              onChange={(e) => setPoster(e.target.files?.[0] ?? null)}
-            />
-            <p className="form-note">
-              Uploaded straight to storage — it never passes through our servers.
-            </p>
-          </div>
 
           <div className="two-column">
             <div className="field">

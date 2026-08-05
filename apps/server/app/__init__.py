@@ -89,6 +89,8 @@ def create_app(config_object=None) -> Flask:
         # itself trips a 429 and the instance is marked unhealthy.
         return {"status": "ok"}
 
+    _warn_if_media_is_unconfigured(app)
+
     register_api_blueprints(app)
     _register_error_handlers(app)
 
@@ -134,3 +136,42 @@ __all__ = ["create_app", "db"]
 
 # Kept out of create_app so `flask --app app run` still works without it.
 os.environ.setdefault("PYTHONUNBUFFERED", "1")
+
+
+def _warn_if_media_is_unconfigured(app) -> None:
+    """Say so at boot when R2 is missing, loudly, once.
+
+    An unconfigured bucket does not stop the app serving — that is deliberate,
+    listings are the product and pictures are not worth refusing traffic over.
+    But it is silent from the outside: every upload answers 503 and every
+    ``photo_url`` and ``poster_url`` serialises as ``null``, which looks to
+    everyone involved like a broken button rather than an unset variable. The
+    only trace was a warning buried in whichever request happened to try first.
+
+    This puts it in the startup log, where a deploy is actually read, and names
+    the variables rather than the symptom.
+    """
+    if app.config.get("TESTING"):
+        return
+    from .services.r2_storage import R2Storage
+
+    with app.app_context():
+        if R2Storage.is_configured():
+            return
+
+    missing = [
+        name
+        for name in ("R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET")
+        if not app.config.get(name)
+    ]
+    if not (app.config.get("R2_ENDPOINT_URL") or app.config.get("R2_ACCOUNT_ID")):
+        missing.append("R2_ACCOUNT_ID (or R2_ENDPOINT_URL)")
+
+    app.logger.warning(
+        "Media storage is NOT configured: %s unset. Band photos and show "
+        "posters cannot be uploaded — every upload will answer 503 "
+        "STORAGE_UNAVAILABLE — and existing images will serialise as null. "
+        "Everything else runs normally. See README 'How media works'.",
+        ", ".join(missing) or "R2 credentials",
+    )
+

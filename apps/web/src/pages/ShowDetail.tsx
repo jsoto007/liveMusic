@@ -6,11 +6,12 @@
  * prose underneath.
  */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Ticket } from "lucide-react";
 import type { EventListing } from "@live-msc/shared";
 
+import { ImageUpload } from "../components/ImageUpload";
 import { Notice, Plate, Rule, SaveButton, SectionHead, Spinner } from "../components/Primitives";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
@@ -19,11 +20,19 @@ import { api } from "../lib/api";
 export function ShowDetailPage() {
   const { eventId = "" } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, initializing } = useAuth();
+  const [posterError, setPosterError] = useState<string | null>(null);
 
+  // Keyed on the reader, and held until the session has settled. This payload
+  // is not the same for everyone: `saved`, `going` and `can_manage` are all
+  // answers to "who is asking". Fetched on mount it would be answered before
+  // the silent refresh returned, so opening a show from a link or a reload —
+  // as opposed to clicking through from the bill — showed the owner a listing
+  // with no poster control and their own saved shows as unsaved.
   const { data, error, loading, reload } = useResource<{ event: EventListing }>(
     () => api.get<{ event: EventListing }>(`/api/v1/events/${eventId}`),
-    [eventId],
+    [eventId, user?.id ?? ""],
+    { enabled: !initializing },
   );
 
   const event = data?.event ?? null;
@@ -40,7 +49,9 @@ export function ShowDetailPage() {
     [user, navigate, eventId, reload],
   );
 
-  if (loading && !event) return <div className="page page-narrow"><Spinner /></div>;
+  if ((loading || initializing) && !event) {
+    return <div className="page page-narrow"><Spinner /></div>;
+  }
   if (error || !event) {
     return (
       <div className="page page-narrow">
@@ -64,6 +75,31 @@ export function ShowDetailPage() {
           alt={`Poster for ${event.headline}`}
           placeholder="show poster"
         />
+        {event.poster_credit ? (
+          <p className="plate-credit">{event.poster_credit}</p>
+        ) : null}
+        {/* Only for whoever the server says owns this listing. The flag is
+            `can_manage` on the detail payload; the upload route re-derives the
+            same ownership from the token regardless, so a forged flag buys an
+            attacker a button and a 404. */}
+        {event.can_manage ? (
+          <>
+            <ImageUpload
+              purpose="event_poster"
+              targetId={event.id}
+              hasImage={Boolean(event.poster_url)}
+              addLabel="Add a poster"
+              replaceLabel="Replace the poster"
+              onUploaded={reload}
+              onError={setPosterError}
+            />
+            {posterError ? (
+              <div style={{ marginTop: "var(--space-2)" }}>
+                <Notice tone="error">{posterError}</Notice>
+              </div>
+            ) : null}
+          </>
+        ) : null}
       </div>
 
       <header style={{ paddingTop: "var(--space-4)" }}>

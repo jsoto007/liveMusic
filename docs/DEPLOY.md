@@ -80,6 +80,7 @@ you are in the EU, in which case set `LOCATIONIQ_BASE_URL` to the `eu1` one.
 | Key | Value |
 |---|---|
 | `R2_ACCOUNT_ID` | from Cloudflare |
+| `R2_ENDPOINT_URL` | **leave empty** unless you have a custom endpoint |
 | `R2_ACCESS_KEY_ID` | from the R2 API token |
 | `R2_SECRET_ACCESS_KEY` | from the R2 API token |
 | `R2_BUCKET` | `live-msc-media` |
@@ -89,6 +90,14 @@ you are in the EU, in which case set `LOCATIONIQ_BASE_URL` to the `eu1` one.
 | `SMTP_HOST` / `SMTP_USERNAME` / `SMTP_PASSWORD` | **leave empty** — you are using Resend |
 | `LOCATIONIQ_API_KEY` | from LocationIQ |
 | `SENTRY_DSN` | optional; leave empty to disable |
+
+> **If you skip the R2 values the deploy still succeeds.** Nothing fails and
+> nothing is obviously wrong: listings, search, accounts and the map all work.
+> What does not work is pictures — every band photo and show poster upload
+> answers `503 STORAGE_UNAVAILABLE`, and any image already stored serialises
+> as `null`. The API prints a warning naming the unset variables at startup,
+> so if uploads are failing, check the top of the API's deploy log before
+> looking anywhere else.
 
 You have to enter the R2 and mail values three times — once each for the API
 and the two cron jobs. That is deliberate: the crons are separate processes and
