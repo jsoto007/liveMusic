@@ -88,7 +88,23 @@ services:
           property: host
 
       # ── Cloudflare R2 ─────────────────────────────────────────────────
+      # ⚠️ SET THESE IN THE DASHBOARD BEFORE ANYONE TRIES TO UPLOAD.
+      #
+      # They are `sync: false`, so a Blueprint deploy leaves them EMPTY and
+      # nothing complains at deploy time. With them empty the app still boots
+      # and serves listings — but every band photo and show poster upload
+      # answers 503 STORAGE_UNAVAILABLE, and `photo_url`/`poster_url`
+      # serialise as null, which reads as a broken button rather than an
+      # unset variable. The API logs a named warning at startup when they are
+      # missing; that line in the deploy log is the thing to check.
       - key: R2_ACCOUNT_ID
+        sync: false
+      # Optional. Derived as https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+      # when unset, which is right for a standard R2 bucket. Set it only for a
+      # custom or jurisdiction-specific endpoint. It is also what the CSP's
+      # connect-src is built from, so a wrong value here blocks the browser's
+      # direct upload with no server-side error to find.
+      - key: R2_ENDPOINT_URL
         sync: false
       - key: R2_ACCESS_KEY_ID
         sync: false

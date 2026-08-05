@@ -22,11 +22,12 @@ dist/
 .turbo/
 *.tsbuildinfo
 
-# Expo / native
+# Expo / native — this is a managed-workflow project; `ios/`/`android/` are
+# `expo prebuild` output, not source, and reappear (Pods and all) the moment
+# someone runs the app natively.
 .expo/
-apps/mobile/ios/build/
-apps/mobile/android/build/
-apps/mobile/android/.gradle/
+apps/mobile/ios/
+apps/mobile/android/
 
 # Editors / OS
 .DS_Store

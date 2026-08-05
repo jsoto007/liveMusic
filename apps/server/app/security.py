@@ -4,7 +4,14 @@ The CSP is strict by default — no ``unsafe-inline``, no ``unsafe-eval``. The
 SPA ships no inline scripts and no ``dangerouslySetInnerHTML``, so there is
 nothing to grandfather in. ``connect-src`` has to include the R2 endpoint
 because the browser uploads audio and posters **directly** to R2 with a
-presigned POST; without it the upload is blocked by the policy.
+presigned PUT; without it the upload is blocked by the policy.
+
+``img-src`` additionally has to include the map tile host. The Plan page draws
+a real basemap, and its tiles are ``<img>`` elements from another origin — with
+the host absent the map renders as an empty grey frame and the only clue is a
+CSP violation in the console. ``MAP_TILE_ORIGINS`` below is the server half of
+the constant in ``apps/web/src/components/PlanMap.tsx``: change the tile
+provider in one and you must change it in the other.
 """
 
 from urllib.parse import urlparse
@@ -85,6 +92,12 @@ def should_force_https(app) -> bool:
     return not all(origin_is_loopback(u) for u in candidates)
 
 
+#: Origins the map basemap is fetched from. Tiles are images only — the host is
+#: deliberately NOT in ``connect-src``, so a compromised tile URL cannot be used
+#: to exfiltrate anything over fetch/XHR.
+MAP_TILE_ORIGINS = ("https://basemaps.cartocdn.com",)
+
+
 def _r2_connect_sources(app) -> list[str]:
     """Origins the browser must be allowed to POST/GET media to."""
     sources: set[str] = set()
@@ -117,7 +130,7 @@ def build_csp_policy(app) -> dict:
         # execution; script-src stays strict.
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
-        "img-src": ["'self'", "data:", "blob:", *media_sources],
+        "img-src": ["'self'", "data:", "blob:", *media_sources, *MAP_TILE_ORIGINS],
         "media-src": ["'self'", "blob:", *media_sources],
         "connect-src": ["'self'", *media_sources],
     }

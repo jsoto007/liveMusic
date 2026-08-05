@@ -43,9 +43,10 @@ on a user's first request.
 
 ## Cloudflare R2 — audio and images
 
-Server-side only. The API never handles file bytes: it mints a presigned POST,
-the client uploads straight to R2, and the server then verifies the object
-with a `HEAD` before writing any row.
+Server-side only. The API never handles file bytes: it mints a presigned PUT
+(R2 does not implement S3's POST-policy API), the client uploads straight to
+R2, and the server then verifies the object with a `HEAD` before writing any
+row.
 
 | Variable | Required | What it is |
 |---|---|---|
@@ -57,8 +58,8 @@ with a `HEAD` before writing any row.
 | `R2_REGION` | `auto` | Leave as `auto` for R2. |
 | `R2_PUBLIC_BASE_URL` | no | A public CDN base for the bucket. **Leave unset** to serve every object through short-lived presigned GETs, which is the safer default. Set it only if you deliberately make the bucket public and want cacheable media. |
 | `R2_SIGNED_URL_TTL_SECONDS` | `900` | Lifetime of a playback (GET) signature. |
-| `UPLOAD_TICKET_TTL_SECONDS` | `900` | Lifetime of an upload ticket **and** its POST signature — they expire together on purpose. |
-| `AUDIO_MAX_BYTES` | `20971520` (20 MB) | Per-sample cap. Enforced by R2 itself via a `content-length-range` policy condition, then re-checked on completion. |
+| `UPLOAD_TICKET_TTL_SECONDS` | `900` | Lifetime of an upload ticket **and** its PUT signature — they expire together on purpose. |
+| `AUDIO_MAX_BYTES` | `20971520` (20 MB) | Per-sample cap. A presigned PUT cannot bound size itself, so this is enforced entirely by the `HEAD` check on completion, which deletes an oversized object rather than keeping it. |
 | `IMAGE_MAX_BYTES` | `8388608` (8 MB) | Per-image cap for posters and band photos. |
 | `AUDIO_SAMPLES_PER_ARTIST` | `12` | How many sound samples one band may hold. |
 

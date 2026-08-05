@@ -1,17 +1,25 @@
 /**
- * The Plan — what is on near you, drawn rather than mapped.
+ * The Plan — what is on near you, on an actual map.
  *
- * The pins are positioned by projecting the venue coordinates into the frame,
- * so their relative geography is real even though the ground is a drawn grid
- * rather than a tile server. Nothing is fetched from a third-party map host,
- * which keeps the reader's location out of anyone else's logs.
+ * The prototype drew its own ground: a CSS grid with pins projected onto it by
+ * percentage. It was handsome and it was useless — the relative geography was
+ * real but there were no streets, so a reader could not tell which of two pins
+ * was the walkable one. This page now renders a real basemap (see
+ * `components/PlanMap.tsx`, which also carries the privacy note about tile
+ * requests) and the listing below it stays the text equivalent of what is
+ * drawn.
+ *
+ * The viewport drives the query. Panning or zooming re-asks the API for that
+ * frame, so the map works wherever the reader is rather than only within five
+ * miles of a hard-coded centre.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { queryString, type EventListing } from "@live-msc/shared";
 
 import { Empty, Notice, SectionHead, Spinner } from "../components/Primitives";
+import { PlanMap, type Viewport } from "../components/PlanMap";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
 
@@ -24,104 +32,51 @@ interface NearbyResponse {
 // Providence — the city the prototype is set in. Used until the reader shares
 // a location, which is asked for rather than taken.
 const FALLBACK = { latitude: 41.824, longitude: -71.4128 };
-
-interface Placed {
-  event: EventListing;
-  left: number;
-  top: number;
-}
-
-/**
- * Project lat/lon into percentage offsets inside the frame.
- *
- * An equirectangular projection with the longitude span scaled by cos(lat) —
- * over a few miles that is visually indistinguishable from a proper projection
- * and needs no dependency. Padded to 8–92% so a pin at the extreme still sits
- * inside the frame rather than half outside it.
- */
-function placePins(events: EventListing[]): Placed[] {
-  const located = events.filter(
-    (event) => event.venue?.latitude != null && event.venue?.longitude != null,
-  );
-  if (located.length === 0) return [];
-
-  const lats = located.map((event) => event.venue!.latitude!);
-  const lons = located.map((event) => event.venue!.longitude!);
-  const minLat = Math.min(...lats);
-  const maxLat = Math.max(...lats);
-  const minLon = Math.min(...lons);
-  const maxLon = Math.max(...lons);
-
-  const latSpan = maxLat - minLat;
-  const lonSpan = maxLon - minLon;
-
-  const scale = (value: number, min: number, span: number) =>
-    // A single venue (or a perfectly aligned row) gives a zero span; centre it
-    // instead of dividing by zero.
-    span < 1e-9 ? 50 : 8 + ((value - min) / span) * 84;
-
-  return located.map((event) => ({
-    event,
-    left: scale(event.venue!.longitude!, minLon, lonSpan),
-    // Latitude grows northward but CSS `top` grows downward.
-    top: 100 - scale(event.venue!.latitude!, minLat, latSpan),
-  }));
-}
-
-/**
- * Neighbourhood names, set where their venues actually cluster.
- *
- * Derived from the listings rather than hard-coded, so the map reads as a
- * drawn plan of wherever the reader is — not only of the city the prototype
- * happened to be set in. Each name sits at the centroid of its venues.
- */
-function placeLabels(placed: Placed[]): { name: string; left: number; top: number }[] {
-  const clusters = new Map<string, { left: number; top: number; count: number }>();
-
-  for (const { event, left, top } of placed) {
-    const name = event.venue?.neighborhood;
-    if (!name) continue;
-    const current = clusters.get(name) ?? { left: 0, top: 0, count: 0 };
-    clusters.set(name, {
-      left: current.left + left,
-      top: current.top + top,
-      count: current.count + 1,
-    });
-  }
-
-  const OFFSET = 10;
-
-  return [...clusters.entries()].map(([name, { left, top, count }]) => {
-    const centre = top / count;
-    // Normally the name sits above the pins it labels. Near the top edge that
-    // would clamp onto them, so it drops below the cluster instead — a label
-    // printed over its own pin is worse than one on the other side.
-    const above = centre - OFFSET;
-    return {
-      name,
-      left: left / count,
-      top: above < 8 ? Math.min(94, centre + OFFSET) : above,
-    };
-  });
-}
+const DEFAULT_RADIUS_MILES = 5;
 
 export function PlanPage() {
   const navigate = useNavigate();
   const [origin, setOrigin] = useState(FALLBACK);
+  const [originIsReader, setOriginIsReader] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // What the map is currently looking at. Separate from `origin`: the reader's
+  // position anchors the distance labels, the viewport decides what is asked
+  // for. Rounded, so a one-pixel drag is not a new cache key.
+  const [viewport, setViewport] = useState<Viewport>({
+    ...FALLBACK,
+    radiusMiles: DEFAULT_RADIUS_MILES,
+  });
+
   const { data, error, loading } = useResource<NearbyResponse>(
     () =>
       api.get<NearbyResponse>(
-        `/api/v1/events/nearby${queryString({ ...origin, radius_miles: 5 })}`,
+        `/api/v1/events/nearby${queryString({
+          latitude: viewport.latitude,
+          longitude: viewport.longitude,
+          radius_miles: viewport.radiusMiles,
+        })}`,
       ),
-    [origin.latitude, origin.longitude],
+    [viewport.latitude, viewport.longitude, viewport.radiusMiles],
   );
 
-  const pins = useMemo(() => placePins(data?.events ?? []), [data]);
-  const labels = useMemo(() => placeLabels(pins), [pins]);
+  // The last rendered set. A pan mid-flight would otherwise blank the map and
+  // the listing until the new response lands, which reads as a broken page.
+  const lastEvents = useRef<EventListing[]>([]);
+  if (data) lastEvents.current = data.events;
+  const events = data?.events ?? lastEvents.current;
+
+  const onViewportChange = useCallback((next: Viewport) => {
+    setViewport((current) => {
+      const moved =
+        Math.abs(current.latitude - next.latitude) > 1e-4 ||
+        Math.abs(current.longitude - next.longitude) > 1e-4 ||
+        Math.abs(current.radiusMiles - next.radiusMiles) > 0.05;
+      return moved ? next : current;
+    });
+  }, []);
 
   const useMyLocation = () => {
     if (!("geolocation" in navigator)) {
@@ -131,10 +86,13 @@ export function PlanPage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setOrigin({
+        const here = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-        });
+        };
+        setOrigin(here);
+        setOriginIsReader(true);
+        setViewport({ ...here, radiusMiles: DEFAULT_RADIUS_MILES });
         setLocationNote(null);
         setLocating(false);
       },
@@ -147,14 +105,25 @@ export function PlanPage() {
     );
   };
 
+  // Clear the highlight when the pointer leaves the listing entirely, so a pin
+  // is not left lit after the reader has moved on.
+  useEffect(() => {
+    if (!activeId) return;
+    const clear = () => setActiveId(null);
+    window.addEventListener("blur", clear);
+    return () => window.removeEventListener("blur", clear);
+  }, [activeId]);
+
+  const radiusLabel = data
+    ? `${data.count} within ${Math.round(data.radius_miles)} miles`
+    : "Shows near you";
+
   return (
     <div className="page">
       <div className="section-head" style={{ marginTop: 0 }}>
         <div>
           <h1 className="page-title">The Plan</h1>
-          <p className="page-sub">
-            {data ? `${data.count} within ${data.radius_miles} miles` : "Shows near you"}
-          </p>
+          <p className="page-sub">{radiusLabel}</p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={useMyLocation}>
           {locating ? "Locating…" : "Use my location"}
@@ -164,49 +133,34 @@ export function PlanPage() {
       {locationNote ? <Notice>{locationNote}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <div className="mapframe" role="img" aria-label={`Map of ${pins.length} nearby shows`}>
-        <div className="mapframe-grid" />
-        {labels.map((label) => (
-          <span
-            key={label.name}
-            className="maplabel"
-            style={{ left: `${label.left}%`, top: `${label.top}%` }}
-            aria-hidden
-          >
-            {label.name}
-          </span>
-        ))}
-        {pins.map(({ event, left, top }) => (
-          <button
-            key={event.id}
-            type="button"
-            className="mappin"
-            style={{ left: `${left}%`, top: `${top}%` }}
-            aria-current={activeId === event.id}
-            aria-label={`${event.pin_number}. ${event.headline} at ${event.venue?.name}`}
-            onMouseEnter={() => setActiveId(event.id)}
-            onFocus={() => setActiveId(event.id)}
-            onClick={() => navigate(`/shows/${event.id}`)}
-          >
-            {event.pin_number}
-          </button>
-        ))}
-        <div className="mapscale">
-          <span />½ mi
-        </div>
-      </div>
+      <PlanMap
+        events={events}
+        origin={origin}
+        originIsReader={originIsReader}
+        activeId={activeId}
+        onActivate={setActiveId}
+        onOpen={(id) => navigate(`/shows/${id}`)}
+        onViewportChange={onViewportChange}
+      />
+
+      <p className="form-note" style={{ marginTop: "var(--space-2)" }}>
+        Drag or zoom the map to look somewhere else.
+      </p>
 
       <SectionHead title="Nearest first" count="Next fourteen days" />
 
       {loading && !data ? <Spinner /> : null}
 
-      {data?.events.map((event) => (
+      {events.map((event) => (
         <button
           key={event.id}
           type="button"
           className="listing"
           onClick={() => navigate(`/shows/${event.id}`)}
           onMouseEnter={() => setActiveId(event.id)}
+          onMouseLeave={() => setActiveId(null)}
+          onFocus={() => setActiveId(event.id)}
+          onBlur={() => setActiveId(null)}
         >
           <span className="listing-time" style={{ color: "var(--color-accent)" }}>
             {event.pin_number}
@@ -224,7 +178,7 @@ export function PlanPage() {
       ))}
 
       {!loading && data?.count === 0 ? (
-        <Empty>Nothing within five miles this fortnight.</Empty>
+        <Empty>Nothing in this part of the map for the next fortnight.</Empty>
       ) : null}
     </div>
   );

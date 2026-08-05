@@ -1,12 +1,12 @@
 /**
  * Direct-to-R2 upload, shared by web and mobile.
  *
- * The file never passes through the API. The server issues a presigned POST
- * scoped to one key, one content type and one size cap; the client submits the
- * bytes straight to R2 and then asks the server to verify and record it.
- *
- * The field order in the form matters: S3-compatible storage requires every
- * policy field to precede `file`, and silently rejects the request otherwise.
+ * The file never passes through the API. The server issues a presigned PUT
+ * scoped to one key and one content type; the client PUTs the bytes straight
+ * to R2 and then asks the server to verify and record it. Not POST: R2 does
+ * not implement the S3 POST-policy API, so it cannot enforce a size cap the
+ * way a form-based upload could — that check happens entirely server-side,
+ * at completion.
  */
 
 import type { ApiClient, ApiResult } from "./client";
@@ -62,37 +62,35 @@ async function requestTicket(
   return result.data;
 }
 
-function buildForm(ticket: UploadTicket, file: UploadableFile): FormData {
-  const form = new FormData();
-  // Policy fields first — `file` must be last.
-  for (const [key, value] of Object.entries(ticket.fields)) {
-    form.append(key, value);
-  }
-  // React Native's FormData accepts a {uri, name, type} descriptor; the web's
-  // takes a Blob. Both are correct for their platform.
-  form.append("file", file as Blob);
-  return form;
+/**
+ * Resolve a platform file reference into a body `fetch` can PUT.
+ *
+ * The web hands us a `Blob` already. React Native hands us a `{uri, name,
+ * type}` descriptor instead — that was fine for `FormData`, which recognises
+ * the shape natively, but a raw-body PUT needs an actual `Blob`. Expo's
+ * `fetch` resolves a local `file://` URI to one, which is the standard way to
+ * bridge this on RN.
+ */
+async function toBody(file: UploadableFile): Promise<Blob> {
+  if (file instanceof Blob) return file;
+  const local = await fetch(file.uri);
+  return await local.blob();
 }
 
 async function putToStorage(ticket: UploadTicket, file: UploadableFile): Promise<void> {
   const response = await fetch(ticket.url, {
-    method: "POST",
-    body: buildForm(ticket, file),
+    method: "PUT",
+    headers: ticket.headers,
+    body: await toBody(file),
     // No Authorization, no cookies: the signature IS the credential, and
     // sending ours to a third-party origin would leak it.
     credentials: "omit",
   });
 
   if (!response.ok) {
-    // R2 enforces the size cap through the policy's content-length-range, so
-    // an oversized file fails here rather than at completion.
-    if (response.status === 400 || response.status === 413) {
-      throw new UploadError(
-        "That file is larger than we accept, or is not the format you chose.",
-        "FILE_REJECTED",
-        response.status,
-      );
-    }
+    // R2 cannot bound the size at signing time for a PUT the way a POST
+    // policy could, so an oversized file is *not* rejected here — it lands,
+    // and the server's HEAD check at completion is what catches it.
     throw new UploadError("The file could not be uploaded.", "UPLOAD_FAILED", response.status);
   }
 }

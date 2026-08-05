@@ -88,6 +88,9 @@ export function BillPage() {
             alt={`Poster for ${featured.headline}`}
             placeholder={`poster / press shot — ${featured.headline}`}
           />
+          {featured.poster_credit ? (
+            <p className="plate-credit">{featured.poster_credit}</p>
+          ) : null}
           <div className="featured-head">
             <div>
               <h2 className="featured-title">{featured.headline}</h2>

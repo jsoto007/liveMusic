@@ -223,7 +223,9 @@ def serialize_artist(artist, *, detail: bool = False, follower_count: int | None
 # ── Events ─────────────────────────────────────────────────────────────────
 
 
-def serialize_event(event, *, detail: bool = False, interest=None, now=None) -> dict:
+def serialize_event(
+    event, *, detail: bool = False, interest=None, now=None, can_manage: bool = False
+) -> dict:
     venue = event.venue
     zone_name = venue.timezone_name if venue else "UTC"
 
@@ -247,6 +249,7 @@ def serialize_event(event, *, detail: bool = False, interest=None, now=None) -> 
         "age_label": AGE_LABELS.get(event.age_restriction, AGE_LABELS[AgeRestriction.ALL_AGES]),
         "short_line": event.short_line,
         "poster_url": R2Storage.access_url(event.poster_key),
+        "poster_credit": event.poster_credit,
         "venue": serialize_venue(venue) if venue else None,
         "artist": (
             {"id": str(event.artist.id), "name": event.artist.name, "slug": event.artist.slug}
@@ -267,6 +270,14 @@ def serialize_event(event, *, detail: bool = False, interest=None, now=None) -> 
                 "ticket_url": event.ticket_url,
                 "published_at": _iso(event.published_at),
                 "cancelled": event.status is EventStatus.CANCELLED,
+                # Whether to offer this reader the poster control. Decided by
+                # the route from the authenticated user (see
+                # ``auth_helpers.may_manage_event_media``) — never inferred
+                # client-side from the artist id, which the client also holds
+                # and could not check anyway. Defaults False: a caller that
+                # forgets to pass it hides a button, rather than showing one
+                # that will be refused.
+                "can_manage": can_manage,
                 "lineup": [
                     {
                         "name": slot.name,

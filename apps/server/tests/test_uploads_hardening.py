@@ -51,12 +51,12 @@ def test_the_presigned_url_expires_with_the_ticket(client, band, stub_r2, app, m
 
     from app.services import r2_storage
 
-    def _capture(key, content_type, max_bytes, expires_in=None):
+    def _capture(key, content_type, expires_in=None):
         captured["expires_in"] = expires_in
-        return {"url": "https://r2.example/bucket", "fields": {"key": key}}
+        return f"https://r2.example/bucket/{key}"
 
     monkeypatch.setattr(
-        r2_storage.R2Storage, "generate_presigned_post", staticmethod(_capture)
+        r2_storage.R2Storage, "generate_presigned_put", staticmethod(_capture)
     )
 
     headers, artist = band
@@ -70,7 +70,7 @@ def test_the_presigned_url_expires_with_the_ticket(client, band, stub_r2, app, m
 def test_a_second_completion_is_refused_cleanly_not_with_a_500(client, band, stub_r2):
     headers, artist = band
     data = request_upload(client, headers, artist).get_json()["data"]
-    stub_r2["put"](data["fields"]["key"])
+    stub_r2["put"](data["key"])
 
     assert complete(client, headers, data["upload_id"]).status_code == 201
     second = complete(client, headers, data["upload_id"])
@@ -106,7 +106,7 @@ def test_the_sweeper_retries_when_the_delete_fails(client, band, stub_r2, monkey
 
     headers, artist = band
     data = request_upload(client, headers, artist).get_json()["data"]
-    stub_r2["put"](data["fields"]["key"])
+    stub_r2["put"](data["key"])
 
     import uuid
 
@@ -137,7 +137,7 @@ def test_abandon_then_upload_leaves_the_object_reclaimable(client, band, stub_r2
 
     headers, artist = band
     data = request_upload(client, headers, artist).get_json()["data"]
-    key = data["fields"]["key"]
+    key = data["key"]
 
     client.delete(f"/api/v1/uploads/{data['upload_id']}", headers=headers)
     # The client races in with the bytes afterwards.
@@ -160,7 +160,7 @@ def test_a_completed_ticket_is_never_swept(client, band, stub_r2):
 
     headers, artist = band
     data = request_upload(client, headers, artist).get_json()["data"]
-    key = data["fields"]["key"]
+    key = data["key"]
     stub_r2["put"](key)
     complete(client, headers, data["upload_id"])
 
@@ -184,7 +184,7 @@ def test_the_quota_counts_samples_and_live_tickets_together(client, band, stub_r
     # Half as finished samples, half as outstanding tickets.
     for _ in range(quota // 2):
         data = request_upload(client, headers, artist).get_json()["data"]
-        stub_r2["put"](data["fields"]["key"])
+        stub_r2["put"](data["key"])
         assert complete(client, headers, data["upload_id"]).status_code == 201
     for _ in range(quota - quota // 2):
         assert request_upload(client, headers, artist).status_code == 201
@@ -201,7 +201,7 @@ def test_the_completion_side_also_enforces_the_quota(client, band, stub_r2, app,
     quota = app.config["AUDIO_SAMPLES_PER_ARTIST"]
 
     data = request_upload(client, headers, artist).get_json()["data"]
-    stub_r2["put"](data["fields"]["key"])
+    stub_r2["put"](data["key"])
 
     # Fill the quota behind the ticket's back.
     for index in range(quota):

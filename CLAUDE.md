@@ -156,19 +156,24 @@ bytes.** The flow is:
    The server authorizes the purpose against the caller, checks the MIME
    allowlist, the size cap and the per-artist quota, mints an opaque object key
    (the client never chooses the key), records a `media_uploads` row as
-   `PENDING`, and returns a **presigned POST** — url + fields.
-2. The client posts the file straight to R2 with those exact fields.
+   `PENDING`, and returns a **presigned PUT** — url + headers.
+2. The client PUTs the file body straight to R2 with those exact headers.
 3. `POST /api/v1/uploads/{id}/complete`. The server issues a `HEAD` against the
    object and verifies it exists, its size is within the cap, and its
    content-type matches what was signed. Only then does the durable row
    (`audio_samples`, or the poster key on an event) get written and the upload
    marked `COMPLETED`.
 
-Why presigned **POST** and not PUT: a presigned POST carries a
-`content-length-range` condition, so R2 itself rejects an oversized upload. A
-presigned PUT cannot enforce size — the client could sign a 10 MB intent and
-push 10 GB. Both are in `services/r2_storage.py`; use `generate_presigned_post`
-for uploads.
+Why presigned **PUT** and not POST: R2 does not implement the S3 POST-policy
+API — it answers a presigned POST with `501 NotImplemented` regardless of
+credentials, confirmed against a live bucket. PUT is the only direct-upload
+path R2 actually supports, and it cannot carry a `content-length-range`
+condition the way POST could, so an oversized upload is not bounced by R2
+itself — it lands, and the HEAD check at step 3 is what catches it and
+deletes the object. That HEAD check was already the belt-and-braces path
+behind the POST condition, so nothing here is unguarded, only the layer that
+catches an oversized file has moved entirely to completion. Both are in
+`services/r2_storage.py`; use `generate_presigned_put` for uploads.
 
 Playback URLs are short-lived presigned GETs (`R2_SIGNED_URL_TTL_SECONDS`,
 default 900). They are minted per-request at serialization time and must never

@@ -121,6 +121,9 @@ export function BillScreen() {
             placeholder={`poster / press shot — ${featured.headline}`}
             accessibilityLabel={`Poster for ${featured.headline}`}
           />
+          {featured.poster_credit ? (
+            <Text style={styles.plateCredit}>{featured.poster_credit}</Text>
+          ) : null}
           <View style={styles.featuredHead}>
             <View style={{ flex: 1, paddingRight: space.s3 }}>
               <Heading size="h3" display>
@@ -194,6 +197,12 @@ function todayLine(): string {
 }
 
 const styles = StyleSheet.create({
+  plateCredit: {
+    fontFamily: fonts.bodyItalic,
+    fontSize: 11,
+    color: ink.faint,
+    marginTop: space.s1,
+  },
   masthead: {
     flexDirection: "row",
     alignItems: "flex-end",

@@ -1,6 +1,6 @@
 """Reclaim storage from uploads that were started and never finished.
 
-A presigned POST can succeed while the client dies before calling
+A presigned PUT can succeed while the client dies before calling
 ``/complete``. Nothing references that object, so without a sweep it sits in
 the bucket forever, billed monthly and invisible.
 """

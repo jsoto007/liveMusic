@@ -146,6 +146,26 @@ def get_owned_artist(artist_id):
     return artist
 
 
+def may_manage_event_media(event, user) -> bool:
+    """Whether ``user`` may attach a poster to ``event``.
+
+    One definition, deliberately. It is enforced in ``routes/uploads.py`` and
+    it is also what decides whether the client is *shown* the control at all
+    (``can_manage`` on the serialized detail). Two copies of this rule drift,
+    and the drift surfaces as a button that 404s — or, worse, as a control
+    hidden from someone who is in fact allowed.
+
+    Note this is the upload rule, not the edit rule: ``_load_editable_event``
+    additionally lets an admin through for moderation, which is a different
+    question and stays where it is.
+    """
+    if event is None or user is None:
+        return False
+    if event.artist_id is not None and get_owned_artist(event.artist_id) is not None:
+        return True
+    return event.created_by_user_id == user.id
+
+
 def require_artist_owner(artist_id_arg: str = "artist_id"):
     """Guard a route scoped to one artist, injecting it as ``g.artist``.
 

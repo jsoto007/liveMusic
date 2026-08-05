@@ -6,7 +6,12 @@ from datetime import timedelta
 from flask import Blueprint, current_app, g, request
 from sqlalchemy.orm import joinedload
 
-from ..auth_helpers import get_owned_artist, load_current_user, require_auth
+from ..auth_helpers import (
+    get_owned_artist,
+    load_current_user,
+    may_manage_event_media,
+    require_auth,
+)
 from ..extensions import db, limiter
 from ..models import (
     AgeRestriction,
@@ -256,7 +261,16 @@ def get_event(event_id):
     if user is not None:
         interest = db.session.get(EventInterest, {"user_id": user.id, "event_id": event.id})
 
-    return ok({"event": serialize_event(event, detail=True, interest=interest)})
+    return ok(
+        {
+            "event": serialize_event(
+                event,
+                detail=True,
+                interest=interest,
+                can_manage=may_manage_event_media(event, user),
+            )
+        }
+    )
 
 
 def _announce(event: Event) -> None:
@@ -530,7 +544,7 @@ def create_event():
     if event.status is EventStatus.PUBLISHED:
         _announce(event)
 
-    return ok({"event": serialize_event(event, detail=True)}, status=201)
+    return ok({"event": serialize_event(event, detail=True, can_manage=True)}, status=201)
 
 
 def _parse_http_url(value, field: str):
@@ -650,7 +664,7 @@ def update_event(event_id):
             return err
 
     db.session.commit()
-    return ok({"event": serialize_event(event, detail=True)})
+    return ok({"event": serialize_event(event, detail=True, can_manage=True)})
 
 
 @events_bp.post("/events/<uuid:event_id>/publish")
@@ -668,7 +682,7 @@ def publish_event(event_id):
         event.published_at = utcnow()
         db.session.commit()
         _announce(event)
-    return ok({"event": serialize_event(event, detail=True)})
+    return ok({"event": serialize_event(event, detail=True, can_manage=True)})
 
 
 @events_bp.post("/events/<uuid:event_id>/cancel")
@@ -681,7 +695,7 @@ def cancel_event(event_id):
         event.status = EventStatus.CANCELLED
         event.cancelled_at = utcnow()
         db.session.commit()
-    return ok({"event": serialize_event(event, detail=True)})
+    return ok({"event": serialize_event(event, detail=True, can_manage=True)})
 
 
 @events_bp.delete("/events/<uuid:event_id>")

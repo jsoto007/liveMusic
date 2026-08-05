@@ -1,6 +1,6 @@
 # 0001 — Media uploads go directly to R2, with a presigned POST
 
-- **Status:** accepted
+- **Status:** superseded — see "Update" below
 - **Date:** 2026-08-03
 
 ## Context
@@ -71,8 +71,27 @@ only point at which the server learns what actually landed.
   (transcoding, waveform extraction) — and even then the transform belongs in a
   worker reading from R2, not in the request path.
 - **Presigned PUT.** Fewer moving parts on the client, but no size enforcement.
-  Rejected.
+  Rejected — but see "Update" below; this is what shipped in the end.
 - **Public bucket, unsigned reads.** Cheaper and cacheable, and supported via
   `R2_PUBLIC_BASE_URL`. Not the default: private-by-default with short-lived
   signed reads is the safer starting position, and the switch is one env var
   when the CDN economics justify it.
+
+## Update (2026-08-05): R2 does not support presigned POST
+
+The "Presigned POST, not PUT" decision above assumed R2 implements S3's
+POST-policy API. It does not — a presigned POST against a live bucket answers
+`501 NotImplemented` regardless of credentials, which this ADR had no way to
+know without trying it. PUT was never actually a choice between two working
+options; it is the only direct-upload path R2 supports.
+
+The consequence is exactly what "Presigned PUT" above predicted: no
+`content-length-range` condition, so R2 cannot bounce an oversized body at the
+edge. The `HEAD` check at completion — already described above as "not
+optional belt-and-braces" — is now the *only* size gate rather than a second
+one, and an oversized object is deleted there rather than kept. Everything
+else in this record (opaque keys, ownership re-derivation, the sweep for
+abandoned uploads, private-by-default reads) is unchanged.
+
+See `apps/server/app/services/r2_storage.py::generate_presigned_put` and
+CLAUDE.md §4 for the current implementation.
