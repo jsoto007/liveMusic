@@ -137,6 +137,8 @@ rest of the app runs normally.
 
 ## Deploying to Render
 
+**Step-by-step: [docs/DEPLOY.md](docs/DEPLOY.md).**
+
 [`render.yaml`](render.yaml) is a Blueprint covering everything: Postgres, a
 key-value store for the rate limiter, the API, the static web bundle, and two
 cron jobs (reminders, and the storage sweeper). Point Render at the repo, then

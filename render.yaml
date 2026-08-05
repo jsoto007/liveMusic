@@ -135,7 +135,13 @@ services:
     name: live-msc-web
     runtime: static
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @live-msc/web build
+    # Render auto-detects `packageManager` in the root package.json and
+    # installs pnpm itself before this runs (that's the "Installing
+    # dependencies with pnpm..." line in the build log) — do NOT prefix this
+    # with `corepack enable`. On Render's build image /usr/bin is read-only,
+    # so corepack's attempt to overwrite the pre-installed /usr/bin/pnpm
+    # fails with EROFS and the build never gets to `pnpm install`.
+    buildCommand: pnpm install --frozen-lockfile && pnpm --filter @live-msc/web build
     staticPublishPath: apps/web/dist
     autoDeployTrigger: commit
     # VITE_API_URL is deliberately unset: the client resolves to a relative
@@ -143,6 +149,16 @@ services:
     # cookie stays first-party. Setting it to an absolute URL would make the
     # session cross-site and break sign-in on reload.
     routes:
+      # ⚠️ CHECK THIS AFTER THE FIRST DEPLOY.
+      #
+      # Render cannot interpolate a service URL into a route destination, so it
+      # is written out by hand. If the name `live-msc-api` was already taken
+      # globally, Render will have appended a suffix and the real URL will not
+      # be this one — every API call then 404s while the site itself looks
+      # fine, which is a confusing way to spend an afternoon.
+      #
+      # Open the live-msc-api service, copy its URL from the top of the page,
+      # and make this match.
       - type: rewrite
         source: /api/*
         destination: https://live-msc-api.onrender.com/api/*
