@@ -7,19 +7,16 @@ August 2026. It is meant to be run once, against production, and is written
 idempotent (keyed on headline + venue + start time) so a second run is a
 no-op rather than a duplicate.
 
-Each event gets a poster: a real, openly-licensed photograph (CC0, CC BY, or
-CC BY-SA — never a scraped promotional/press photo) sourced from Wikimedia
-Commons and chosen to match the show's genre, uploaded straight to R2 the same
-way the API's own upload flow would. Attribution for each is listed in
-PHOTO_CREDITS below; several licenses (CC BY / CC BY-SA) require a credit line
-wherever the image is displayed, which the app does not currently render —
-that credit line still needs a home in the UI before this fully satisfies the
-license terms.
+Each event gets its own original stock-style editorial photograph, generated
+for that exact bill rather than borrowed from an unrelated artist or assigned
+only by genre. The checked-in JPEGs contain no performer likenesses, logos or
+promotional artwork. They upload straight to R2 through the server-side seed
+path.
 
 Run from apps/server, with a real DATABASE_URL and real R2_* credentials in
 the environment:
 
-    python scripts/seed_real_nyc.py --photos-dir /path/to/downloaded/photos
+    python scripts/seed_real_nyc.py
 """
 
 import argparse
@@ -76,7 +73,7 @@ EVENTS = [
         "A benefit-ticketed triple bill at Rumsey Playfield — Simple Plan, 3OH!3 and "
         "Bowling for Soup sharing one stage in Central Park.",
         "https://www.centralpark.com/things-to-do/concerts/summerstage-festival/",
-        "rockpunk.jpg",
+        "simple-plan-triple-bill.jpg",
     ),
     (
         "Andrew Bird with Wordless Music Orchestra", "SummerStage (Rumsey Playfield)",
@@ -85,7 +82,7 @@ EVENTS = [
         "Andrew Bird marks twenty years of playing SummerStage with the Wordless Music "
         "Orchestra behind him. Free, first-come.",
         "https://www.centralpark.com/things-to-do/concerts/summerstage-festival/",
-        "folkcountry.jpg",
+        "andrew-bird-orchestra.jpg",
     ),
     (
         "Funk Flex Birthday R&B Picnic", "SummerStage (Rumsey Playfield)",
@@ -95,7 +92,7 @@ EVENTS = [
         "A free afternoon-into-evening of classic soul and R&B at Rumsey Playfield, "
         "built around Funk Flex's annual birthday picnic.",
         "https://www.centralpark.com/things-to-do/concerts/summerstage-festival/",
-        "gospelsoul.jpg",
+        "funk-flex-rnb-picnic.jpg",
     ),
     (
         "Chance the Rapper — Coloring Book 10 Year Anniversary", "SummerStage (Rumsey Playfield)",
@@ -103,14 +100,14 @@ EVENTS = [
         None, "Coloring Book, ten years on",
         "A benefit-ticketed Rumsey Playfield show marking ten years of Coloring Book.",
         "https://www.centralpark.com/things-to-do/concerts/summerstage-festival/",
-        "hiphop1.jpg",
+        "chance-coloring-book.jpg",
     ),
     (
         "The Diplomats: Double Trouble Album Release Concert", "SOB's",
         datetime(2026, 8, 27, 19, 0), Genre.HIP_HOP, None, AgeRestriction.TWENTY_ONE_PLUS,
         None, "Album release show, 21+",
         "The Diplomats celebrate the release of Double Trouble on SOB's main floor.",
-        "https://sobs.com/calendar/", "hiphop1.jpg",
+        "https://sobs.com/calendar/", "diplomats-album-release.jpg",
     ),
     (
         "Blues Traveler / Gin Blossoms / Spin Doctors", "SummerStage (Rumsey Playfield)",
@@ -119,21 +116,21 @@ EVENTS = [
         "Three 90s alt-rock radio staples on one Rumsey Playfield bill, ticketed as a "
         "SummerStage benefit night.",
         "https://www.centralpark.com/things-to-do/concerts/summerstage-festival/",
-        "other.jpg",
+        "blues-traveler-triple-bill.jpg",
     ),
     (
         "Rival Consoles", "Elsewhere",
         datetime(2026, 8, 27, 19, 0), Genre.ELECTRONIC, None, AgeRestriction.ALL_AGES,
         "Arushi Jain (DJ set)", "Live electronic, The Hall",
         "Rival Consoles plays The Hall at Elsewhere with an Arushi Jain DJ set opening.",
-        "https://www.elsewhere.club/events", "electronic.jpg",
+        "https://www.elsewhere.club/events", "rival-consoles.jpg",
     ),
     (
         "Hypocrisy", "Gramercy Theatre",
         datetime(2026, 8, 12, 19, 0), Genre.METAL, None, AgeRestriction.ALL_AGES,
         None, "Death metal at the Gramercy",
         "Swedish death metal veterans Hypocrisy headline the Gramercy Theatre.",
-        "https://www.livenation.com/event/k7vGF_GNTg40Y/hypocrisy", "metal.jpg",
+        "https://www.livenation.com/event/k7vGF_GNTg40Y/hypocrisy", "hypocrisy-death-metal.jpg",
     ),
     (
         "New York Guitar Festival", "Bryant Park",
@@ -141,7 +138,7 @@ EVENTS = [
         None, "Free guitar-centred evening on the lawn",
         "An evening of classical, jazz and world guitar repertoire on the Bryant Park "
         "lawn — free, no reservation, as every Picnic Performance is.",
-        "https://bryantpark.org/activities/picnic-performances", "classical.jpg",
+        "https://bryantpark.org/activities/picnic-performances", "new-york-guitar-festival.jpg",
     ),
     (
         "10 Years of Blonde: A Live Jazz Tribute to Frank Ocean", "SOB's",
@@ -149,7 +146,7 @@ EVENTS = [
         None, "A jazz band's read on Blonde, ten years later",
         "A live band reinterprets Frank Ocean's Blonde as a jazz set, ten years after "
         "its release.",
-        "https://sobs.com/calendar/", "jazz1.jpg",
+        "https://sobs.com/calendar/", "blonde-jazz-tribute.jpg",
     ),
     (
         "Vanguard Jazz Orchestra", "Village Vanguard",
@@ -157,14 +154,14 @@ EVENTS = [
         None, "The Monday-night residency, running since 1966",
         "The Vanguard Jazz Orchestra's Monday residency, unbroken since 1966 — cover "
         "charge includes the one-drink minimum the room has always run on.",
-        "https://villagevanguard.com", "jazz2.jpg",
+        "https://villagevanguard.com", "vanguard-jazz-orchestra.jpg",
     ),
     (
         "End of the Weak Hip-Hop Open Mic", "Bowery Palace",
         datetime(2026, 8, 12, 20, 0), Genre.OPEN_MIC, 0, AgeRestriction.ALL_AGES,
         None, "Sign up, free before 9",
         "A long-running weekly hip-hop open mic, free to get in before 9pm.",
-        None, "openmic.jpg",
+        None, "end-of-the-weak-open-mic.jpg",
     ),
     (
         "2026 NYC Summer Music, Arts & Vendor Festival", "Astoria Park",
@@ -173,25 +170,9 @@ EVENTS = [
         "A free, family-friendly weekend of live music, local vendors and food "
         "alongside the East River in Astoria Park.",
         "https://www.eventbrite.com/e/2026-nyc-summer-music-arts-vendor-festival-tickets-1992065829521",
-        "festival.jpg",
+        "astoria-summer-festival.jpg",
     ),
 ]
-
-PHOTO_CREDITS = {
-    "rockpunk.jpg": "One-Eyed Doll at Rockfest — Wikimedia Commons, CC BY-SA 2.0",
-    "folkcountry.jpg": "José Ayerve (Chris Darling) — Wikimedia Commons, CC BY 2.0",
-    "gospelsoul.jpg": "Beantown Lindy Hop Camp soul party (Sdkb) — Wikimedia Commons, CC BY-SA 4.0",
-    "hiphop1.jpg": "Devin the Dude at Emo's (Zach Garner) — Wikimedia Commons, CC BY-SA 3.0",
-    "other.jpg": "Collective Soul 2016 — Wikimedia Commons, CC BY-SA 4.0",
-    "electronic.jpg": "DJ Fita (RayoMwangi) — Wikimedia Commons, CC BY-SA 4.0",
-    "metal.jpg": "Dead by April at Gärdeshov (Calle Eklund) — Wikimedia Commons, CC BY-SA 3.0",
-    "classical.jpg": "Kennedy Center, NSO (Andrew Bossi) — Wikimedia Commons, CC BY-SA 2.0",
-    "jazz1.jpg": "Jazz club singer (epSos.de) — Wikimedia Commons, CC BY 2.0",
-    "jazz2.jpg": "Tainan symphony jazz night (Tainan City Government) — Wikimedia Commons, Attribution",
-    "openmic.jpg": "Amos Zimmerman (Amosquitoz) — Wikimedia Commons, CC BY-SA 4.0",
-    "festival.jpg": "Outside Lands festival crowd (Steve) — Wikimedia Commons, CC BY-SA 2.0",
-}
-
 
 def _curator(session) -> User:
     user = session.query(User).filter(User.email == CURATOR_EMAIL).one_or_none()
@@ -271,7 +252,8 @@ def _upload_poster(event: Event, photos_dir: str, filename: str) -> bool:
         return False
 
     event.poster_key = key
-    event.poster_credit = PHOTO_CREDITS.get(filename)
+    # Original house stock has no third-party attribution line.
+    event.poster_credit = None
     return True
 
 
@@ -334,8 +316,11 @@ def seed_real_nyc(session, *, photos_dir: str | None) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--photos-dir", default=None,
-                        help="Directory holding the downloaded photo files.")
+    parser.add_argument(
+        "--photos-dir",
+        default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "seed_photos", "nyc"),
+        help="Directory holding the event-matched stock photos.",
+    )
     args = parser.parse_args()
 
     app = create_app(Config)

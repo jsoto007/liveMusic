@@ -229,7 +229,7 @@ class R2Storage:
 
     @staticmethod
     def upload_origin() -> str | None:
-        """The origin a browser will POST uploads to — needed for CSP checks."""
+        """The origin a browser will PUT uploads to — needed for CSP checks."""
         config = _config()
         raw = config.get("R2_ENDPOINT_URL") or (
             f"https://{config['R2_ACCOUNT_ID']}.r2.cloudflarestorage.com"
@@ -242,3 +242,52 @@ class R2Storage:
         if not parsed.scheme or not parsed.netloc:
             return None
         return f"{parsed.scheme}://{parsed.netloc}"
+
+    @staticmethod
+    def check_cors() -> bool:
+        """Return True if the bucket has a CORS rule that allows PUT.
+
+        Used at startup to emit a single loud warning when CORS has not been
+        configured — without it the browser's preflight is denied before a byte
+        leaves the page, and the failure looks client-side when the cause is a
+        bucket setting.
+
+        Returns False (and logs a warning) when the bucket has no CORS rules,
+        or no rule that allows PUT. Returns True when at least one rule allows
+        PUT, or when the call fails for a reason other than "no CORS config"
+        (to avoid false alarms on permission-restricted tokens).
+        """
+        client = build_client()
+        if client is None:
+            return False
+        try:
+            response = client.get_bucket_cors(Bucket=_config()["R2_BUCKET"])
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code in {"NoSuchCORSConfiguration", "NoSuchBucketCORS"}:
+                current_app.logger.warning(
+                    "R2 bucket '%s' has no CORS policy. Browser uploads will "
+                    "fail the preflight check. Fix with: "
+                    "flask --app app media configure-cors",
+                    _config().get("R2_BUCKET"),
+                )
+                return False
+            # Any other error (permissions, network) — don't block startup on it.
+            current_app.logger.debug("R2 CORS check skipped: %s", exc)
+            return True
+        except BotoCoreError as exc:
+            current_app.logger.debug("R2 CORS check skipped: %s", exc)
+            return True
+
+        rules = response.get("CORSRules") or []
+        for rule in rules:
+            if "PUT" in (rule.get("AllowedMethods") or []):
+                return True
+
+        current_app.logger.warning(
+            "R2 bucket '%s' has a CORS policy but no rule allows PUT. "
+            "Browser uploads will fail the preflight check. Fix with: "
+            "flask --app app media configure-cors",
+            _config().get("R2_BUCKET"),
+        )
+        return False
