@@ -1,15 +1,12 @@
 /**
- * 02 — The Plan. What is on near you, drawn rather than mapped.
- *
- * The pins are projected from real venue coordinates onto a drawn grid, so
- * their relative geography holds without a tile server — which also keeps the
- * reader's location out of a third party's logs.
+ * 02 — The Plan. What is on near you, on a real street map.
  */
 
-import { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import MapView, { Marker, UrlTile, type Region } from "react-native-maps";
 import { queryString, type EventListing } from "@live-msc/shared";
 
 import { ListingRow } from "../components/Listing";
@@ -23,49 +20,18 @@ interface NearbyResponse {
   events: EventListing[];
   count: number;
   radius_miles: number;
+  fallback_nearest: boolean;
 }
 
 const FALLBACK = { latitude: 41.824, longitude: -71.4128 };
 const MAP_HEIGHT = 320;
-
-interface Placed {
-  event: EventListing;
-  left: number;
-  top: number;
-}
-
-/**
- * Equirectangular projection into percentage offsets, padded to 8–92% so a
- * pin at the extreme still sits inside the frame.
- */
-function placePins(events: EventListing[]): Placed[] {
-  const located = events.filter(
-    (event) => event.venue?.latitude != null && event.venue?.longitude != null,
-  );
-  if (located.length === 0) return [];
-
-  const lats = located.map((event) => event.venue!.latitude!);
-  const lons = located.map((event) => event.venue!.longitude!);
-  const minLat = Math.min(...lats);
-  const minLon = Math.min(...lons);
-  const latSpan = Math.max(...lats) - minLat;
-  const lonSpan = Math.max(...lons) - minLon;
-
-  // A single venue gives a zero span; centre it rather than dividing by zero.
-  const scale = (value: number, min: number, span: number) =>
-    span < 1e-9 ? 50 : 8 + ((value - min) / span) * 84;
-
-  return located.map((event) => ({
-    event,
-    left: scale(event.venue!.longitude!, minLon, lonSpan),
-    // Latitude grows north; screen coordinates grow down.
-    top: 100 - scale(event.venue!.latitude!, minLat, latSpan),
-  }));
-}
+const INITIAL_REGION: Region = { ...FALLBACK, latitudeDelta: 0.14, longitudeDelta: 0.14 };
+const TILE_URL = "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 
 export function PlanScreen() {
   const navigation = useNavigation<RootNavigation>();
   const [origin, setOrigin] = useState(FALLBACK);
+  const [originIsReader, setOriginIsReader] = useState(false);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
 
@@ -77,7 +43,23 @@ export function PlanScreen() {
     [origin.latitude, origin.longitude],
   );
 
-  const pins = useMemo(() => placePins(data?.events ?? []), [data]);
+  const map = useRef<MapView | null>(null);
+  const hasFramed = useRef(false);
+
+  useEffect(() => {
+    const located = (data?.events ?? []).filter(
+      (event) => event.venue?.latitude != null && event.venue?.longitude != null,
+    );
+    if (!map.current || located.length === 0 || hasFramed.current) return;
+    hasFramed.current = true;
+    map.current.fitToCoordinates(
+      located.map((event) => ({
+        latitude: event.venue!.latitude!,
+        longitude: event.venue!.longitude!,
+      })),
+      { edgePadding: { top: 45, right: 45, bottom: 45, left: 45 }, animated: false },
+    );
+  }, [data]);
 
   const requestLocation = useCallback(async () => {
     setLocating(true);
@@ -95,6 +77,17 @@ export function PlanScreen() {
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
       });
+      setOriginIsReader(true);
+      hasFramed.current = false;
+      map.current?.animateToRegion(
+        {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          latitudeDelta: 0.14,
+          longitudeDelta: 0.14,
+        },
+        400,
+      );
       setLocationNote(null);
     } catch {
       setLocationNote("Could not read your location. Showing the city centre.");
@@ -115,7 +108,11 @@ export function PlanScreen() {
             The Plan
           </Heading>
           <Kicker style={{ marginTop: 5 }}>
-            {data ? `${data.count} within ${data.radius_miles} miles` : "Shows near you"}
+            {data
+              ? data.fallback_nearest
+                ? `${data.count} nearest available`
+                : `${data.count} within ${data.radius_miles} miles`
+              : "Shows near you"}
           </Kicker>
         </View>
         <Button
@@ -128,35 +125,42 @@ export function PlanScreen() {
       {locationNote ? <Notice>{locationNote}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <View style={styles.mapframe}>
-        {/* The drawn grid: horizontal and vertical hairlines, no tiles. */}
-        {Array.from({ length: 11 }, (_, index) => (
-          <View key={`h${index}`} style={[styles.gridLine, { top: index * 30 }]} />
-        ))}
-        {Array.from({ length: 13 }, (_, index) => (
-          <View key={`v${index}`} style={[styles.gridLineV, { left: index * 30 }]} />
-        ))}
+      {data?.fallback_nearest ? (
+        <Notice>Nothing within five miles, so these are the nearest upcoming shows.</Notice>
+      ) : null}
 
-        {pins.map(({ event, left, top }) => (
-          <Pressable
+      <MapView
+        ref={map}
+        style={styles.mapframe}
+        initialRegion={INITIAL_REGION}
+        mapType="none"
+        showsUserLocation={originIsReader}
+        showsMyLocationButton={false}
+        toolbarEnabled={false}
+        loadingEnabled
+        accessibilityLabel="Map of nearby upcoming shows"
+      >
+        <UrlTile urlTemplate={TILE_URL} maximumZ={19} flipY={false} />
+        {(data?.events ?? []).map((event) =>
+          event.venue?.latitude != null && event.venue.longitude != null ? (
+          <Marker
             key={event.id}
+            coordinate={{
+              latitude: event.venue.latitude,
+              longitude: event.venue.longitude,
+            }}
+            title={event.headline}
+            description={`${event.venue.name} · ${event.day_label} ${event.time_label}`}
             onPress={() => navigation.navigate("Show", { eventId: event.id })}
-            accessibilityRole="button"
             accessibilityLabel={`${event.pin_number}. ${event.headline} at ${event.venue?.name}`}
-            style={[
-              styles.pin,
-              { left: `${left}%`, top: (top / 100) * MAP_HEIGHT - 14 },
-            ]}
           >
-            <Text style={styles.pinLabel}>{event.pin_number}</Text>
-          </Pressable>
-        ))}
-
-        <View style={styles.scale}>
-          <View style={styles.scaleBar} />
-          <Text style={styles.scaleLabel}>½ MI</Text>
-        </View>
-      </View>
+            <View style={styles.pin}>
+              <Text style={styles.pinLabel}>{event.pin_number}</Text>
+            </View>
+          </Marker>
+          ) : null,
+        )}
+      </MapView>
 
       <SectionHead title="Nearest first" count="Next fourteen days" />
 
@@ -171,7 +175,7 @@ export function PlanScreen() {
         />
       ))}
       {!loading && data?.count === 0 ? (
-        <Empty>Nothing within five miles this fortnight.</Empty>
+        <Empty>No located shows are scheduled in the next fortnight.</Empty>
       ) : null}
     </Screen>
   );
@@ -187,31 +191,14 @@ const styles = StyleSheet.create({
   },
   mapframe: {
     height: MAP_HEIGHT,
-    backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: ink.divider,
     borderRadius: radius.md,
     overflow: "hidden",
   },
-  gridLine: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: ink.divider,
-  },
-  gridLineV: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: StyleSheet.hairlineWidth,
-    backgroundColor: ink.divider,
-  },
   pin: {
-    position: "absolute",
     width: 28,
     height: 28,
-    marginLeft: -14,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -221,19 +208,4 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   pinLabel: { fontFamily: fonts.heading, fontSize: 12, color: ink.soft, ...tabular },
-  scale: {
-    position: "absolute",
-    right: 12,
-    bottom: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.bg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: ink.divider,
-    paddingVertical: 5,
-    paddingHorizontal: 9,
-  },
-  scaleBar: { width: 26, height: 1, backgroundColor: colors.text },
-  scaleLabel: { fontFamily: fonts.body, fontSize: 9.5, letterSpacing: 1, color: ink.soft },
 });

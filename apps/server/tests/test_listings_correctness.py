@@ -162,12 +162,16 @@ def test_a_venue_across_the_antimeridian_is_not_dropped(client, make_event, make
     assert data["events"][0]["distance_miles"] < 2
 
 
-def test_the_ordinary_bounding_box_still_excludes_the_far_away(client, make_event, make_venue):
+def test_empty_bounding_box_returns_the_nearest_far_away_event(
+    client, make_event, make_venue
+):
     make_event(venue=make_venue(name="Boston", latitude=42.3601, longitude=-71.0589))
     data = client.get(
         "/api/v1/events/nearby?latitude=41.8180&longitude=-71.4460&radius_miles=5"
     ).get_json()["data"]
-    assert data["count"] == 0
+    assert data["count"] == 1
+    assert data["fallback_nearest"] is True
+    assert data["events"][0]["venue"]["name"] == "Boston"
 
 
 # ── Nearby ranked by distance, not by start time ───────────────────────────

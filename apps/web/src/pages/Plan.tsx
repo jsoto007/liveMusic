@@ -27,6 +27,7 @@ interface NearbyResponse {
   events: EventListing[];
   count: number;
   radius_miles: number;
+  fallback_nearest: boolean;
 }
 
 // Providence — the city the prototype is set in. Used until the reader shares
@@ -115,7 +116,9 @@ export function PlanPage() {
   }, [activeId]);
 
   const radiusLabel = data
-    ? `${data.count} within ${Math.round(data.radius_miles)} miles`
+    ? data.fallback_nearest
+      ? `${data.count} nearest available`
+      : `${data.count} within ${Math.round(data.radius_miles)} miles`
     : "Shows near you";
 
   return (
@@ -132,8 +135,12 @@ export function PlanPage() {
 
       {locationNote ? <Notice>{locationNote}</Notice> : null}
       {error ? <Notice tone="error">{error}</Notice> : null}
+      {data?.fallback_nearest ? (
+        <Notice>Nothing in this map area, so these are the nearest upcoming shows.</Notice>
+      ) : null}
 
       <PlanMap
+        key={data?.fallback_nearest ? `nearest-${events.map((event) => event.id).join("-")}` : "local"}
         events={events}
         origin={origin}
         originIsReader={originIsReader}
@@ -165,6 +172,9 @@ export function PlanPage() {
           <span className="listing-time" style={{ color: "var(--color-accent)" }}>
             {event.pin_number}
           </span>
+          <span className="listing-plate" aria-hidden="true">
+            {event.poster_url ? <img src={event.poster_url} alt="" /> : <span>Photo</span>}
+          </span>
           <span className="listing-body">
             <span className="listing-artist">{event.headline}</span>
             <span className="listing-meta">
@@ -178,7 +188,7 @@ export function PlanPage() {
       ))}
 
       {!loading && data?.count === 0 ? (
-        <Empty>Nothing in this part of the map for the next fortnight.</Empty>
+        <Empty>No located shows are scheduled in the next fortnight.</Empty>
       ) : null}
     </div>
   );
