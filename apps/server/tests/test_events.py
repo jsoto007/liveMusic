@@ -153,12 +153,30 @@ def test_nearby_orders_by_distance_and_numbers_pins(client, make_event, make_ven
     assert data["events"][0]["distance_label"] == "here"
 
 
-def test_nearby_excludes_beyond_the_radius(client, make_event, make_venue):
+def test_nearby_falls_back_to_nearest_when_radius_is_empty(client, make_event, make_venue):
     make_event(venue=make_venue(name="Far", latitude=42.3601, longitude=-71.0589))  # Boston
     data = client.get(
         "/api/v1/events/nearby?latitude=41.8180&longitude=-71.4460&radius_miles=5"
     ).get_json()["data"]
-    assert data["count"] == 0
+    assert data["count"] == 1
+    assert data["events"][0]["headline"] == "Bloodroot Choir"
+    assert data["events"][0]["distance_miles"] > 5
+    assert data["fallback_nearest"] is True
+
+
+def test_nearby_does_not_mix_out_of_radius_events_into_local_results(
+    client, make_event, make_venue
+):
+    make_event(venue=make_venue(name="Here", latitude=41.8180, longitude=-71.4460))
+    make_event(
+        headline="Boston show",
+        venue=make_venue(name="Far", latitude=42.3601, longitude=-71.0589),
+    )
+    data = client.get(
+        "/api/v1/events/nearby?latitude=41.8180&longitude=-71.4460&radius_miles=5"
+    ).get_json()["data"]
+    assert [event["headline"] for event in data["events"]] == ["Bloodroot Choir"]
+    assert data["fallback_nearest"] is False
 
 
 def test_nearby_rejects_out_of_range_coordinates(client):

@@ -264,6 +264,7 @@ def seed_real_nyc(session, *, photos_dir: str | None) -> dict:
 
     created_events = 0
     posters_uploaded = 0
+    posters_missing = 0
     for (
         headline, venue_name, local_dt, genre, price_cents, ages, support,
         short_line, blurb, ticket_url, photo_file,
@@ -281,6 +282,10 @@ def seed_real_nyc(session, *, photos_dir: str | None) -> dict:
             if photos_dir and not existing.poster_key:
                 if _upload_poster(existing, photos_dir, photo_file):
                     posters_uploaded += 1
+                else:
+                    posters_missing += 1
+            elif not existing.poster_key:
+                posters_missing += 1
             continue
 
         event = Event(
@@ -305,12 +310,19 @@ def seed_real_nyc(session, *, photos_dir: str | None) -> dict:
         if photos_dir:
             if _upload_poster(event, photos_dir, photo_file):
                 posters_uploaded += 1
+            else:
+                posters_missing += 1
+        else:
+            posters_missing += 1
 
         created_events += 1
 
     session.commit()
     return {
-        "venues": len(venues), "events": created_events, "posters_uploaded": posters_uploaded,
+        "venues": len(venues),
+        "events": created_events,
+        "posters_uploaded": posters_uploaded,
+        "posters_missing": posters_missing,
     }
 
 
@@ -321,6 +333,11 @@ def main():
         default=os.path.join(os.path.dirname(os.path.dirname(__file__)), "seed_photos", "nyc"),
         help="Directory holding the event-matched stock photos.",
     )
+    parser.add_argument(
+        "--require-posters",
+        action="store_true",
+        help="Exit unsuccessfully if any seeded event still lacks its poster.",
+    )
     args = parser.parse_args()
 
     app = create_app(Config)
@@ -328,8 +345,14 @@ def main():
         summary = seed_real_nyc(db.session, photos_dir=args.photos_dir)
         print(
             f"Venues: {summary['venues']}, events created: {summary['events']}, "
-            f"posters uploaded: {summary['posters_uploaded']}"
+            f"posters uploaded: {summary['posters_uploaded']}, "
+            f"posters missing: {summary['posters_missing']}"
         )
+        if args.require_posters and summary["posters_missing"]:
+            raise SystemExit(
+                "Poster backfill failed: "
+                f"{summary['posters_missing']} seeded events still have no R2 object."
+            )
 
 
 if __name__ == "__main__":

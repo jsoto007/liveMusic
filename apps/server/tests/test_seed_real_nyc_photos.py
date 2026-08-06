@@ -14,3 +14,9 @@ def test_every_seed_event_has_a_unique_matching_photo_asset():
         assert path.is_file(), f"Missing stock photo for seed event: {filename}"
         assert path.read_bytes()[:3] == b"\xff\xd8\xff", f"Not a JPEG: {filename}"
         assert path.stat().st_size < 8 * 1024 * 1024
+
+
+def test_render_predeploy_backfills_and_requires_seed_posters():
+    render_config = (Path(__file__).parents[3] / "render.yaml").read_text()
+
+    assert "python scripts/seed_real_nyc.py --require-posters" in render_config

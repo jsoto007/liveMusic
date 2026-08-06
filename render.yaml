@@ -37,9 +37,10 @@ services:
     region: oregon
     rootDir: apps/server
     buildCommand: pip install -e .
-    # Migrations run before the new instance takes traffic, so a deploy can
-    # never serve code against a schema it does not have.
-    preDeployCommand: flask --app app db upgrade
+    # Migrations and the idempotent editorial-event poster backfill run before
+    # the new instance takes traffic. Requiring posters makes a missing R2
+    # secret fail visibly at deploy time instead of serving blank plates.
+    preDeployCommand: flask --app app db upgrade && python scripts/seed_real_nyc.py --require-posters
     startCommand: gunicorn wsgi:app --workers 2 --threads 4 --timeout 60 --access-logfile -
     healthCheckPath: /health
     autoDeployTrigger: commit

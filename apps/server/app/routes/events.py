@@ -171,7 +171,7 @@ def list_events():
 @events_bp.get("/events/nearby")
 @limiter.limit("60 per minute")
 def nearby_events():
-    """The map: listings within a radius, nearest first."""
+    """The map: listings within a radius, or the nearest available shows."""
     latitude, err = parse_latitude(request.args.get("latitude"))
     if err:
         return err
@@ -196,53 +196,81 @@ def nearby_events():
     if err:
         return err
 
-    min_lat, max_lat, min_lon, max_lon = event_service.bounding_box(latitude, longitude, radius)
-
-    stmt = event_service.visible_query(db.session, days=14)
-    stmt = event_service.apply_filters(stmt, genres=genres)
-    stmt = stmt.where(
-        Venue.latitude.isnot(None),
-        Venue.longitude.isnot(None),
-        Venue.latitude.between(min_lat, max_lat),
-        event_service.longitude_clause(Venue.longitude, min_lon, max_lon),
-    )
+    base_stmt = event_service.visible_query(db.session, days=14)
+    base_stmt = event_service.apply_filters(base_stmt, genres=genres)
+    base_stmt = base_stmt.where(Venue.latitude.isnot(None), Venue.longitude.isnot(None))
     # Ordered by planar distance, NOT by start time. Truncating a chronological
     # order before computing distance meant the 60 "nearest" were really the 60
     # nearest *of the 300 soonest* — a venue across the street with a show next
     # week was dropped for a farther one tonight. The exact haversine pass below
     # still does the real ranking; this only has to stop under-selecting.
     _cos_lat = math.cos(math.radians(latitude))
-    stmt = stmt.order_by(
-        (
-            (Venue.latitude - latitude) * (Venue.latitude - latitude)
-            + (Venue.longitude - longitude) * (Venue.longitude - longitude) * (_cos_lat * _cos_lat)
-        ).asc()
-    ).limit(300)
+    distance_order = (
+        (Venue.latitude - latitude) * (Venue.latitude - latitude)
+        + (Venue.longitude - longitude) * (Venue.longitude - longitude) * (_cos_lat * _cos_lat)
+    ).asc()
 
-    rows = db.session.execute(stmt).unique().scalars().all()
+    min_lat, max_lat, min_lon, max_lon = event_service.bounding_box(latitude, longitude, radius)
+    within_stmt = base_stmt.where(
+        Venue.latitude.between(min_lat, max_lat),
+        event_service.longitude_clause(Venue.longitude, min_lon, max_lon),
+    ).order_by(distance_order).limit(300)
+
+    rows = db.session.execute(within_stmt).unique().scalars().all()
+    ranked = [
+        (
+            event_service.haversine_miles(
+                latitude, longitude, event.venue.latitude, event.venue.longitude
+            ),
+            event,
+        )
+        for event in rows
+    ]
+    ranked = [pair for pair in ranked if pair[0] <= radius]
+    fallback = not ranked
+
+    if fallback:
+        # An empty map is a dead end. Search the entire fourteen-day window
+        # and return a small nearest-first set even when it lies outside the
+        # requested radius. The planar order is only a candidate selector;
+        # haversine below remains the authoritative distance and ordering.
+        nearest_stmt = base_stmt.order_by(distance_order).limit(300)
+        nearest_rows = db.session.execute(nearest_stmt).unique().scalars().all()
+        ranked = [
+            (
+                event_service.haversine_miles(
+                    latitude, longitude, event.venue.latitude, event.venue.longitude
+                ),
+                event,
+            )
+            for event in nearest_rows
+        ]
+
+    ranked.sort(key=lambda pair: pair[0])
+    ranked = ranked[:12 if fallback else 60]
+    selected_rows = [event for _miles, event in ranked]
 
     user = load_current_user()
-    interests = event_service.interests_for(db.session, user, rows)
+    interests = event_service.interests_for(db.session, user, selected_rows)
     now = utcnow()
 
-    within = []
-    for event in rows:
-        miles = event_service.haversine_miles(
-            latitude, longitude, event.venue.latitude, event.venue.longitude
-        )
-        if miles > radius:
-            continue
+    ordered = []
+    for miles, event in ranked:
         payload = serialize_event(event, interest=interests.get(event.id), now=now)
         payload["distance_miles"] = round(miles, 2)
         payload["distance_label"] = event_service.distance_label(miles)
-        within.append((miles, payload))
-
-    within.sort(key=lambda pair: pair[0])
-    ordered = [payload for _miles, payload in within[:60]]
+        ordered.append(payload)
     for index, payload in enumerate(ordered, start=1):
         payload["pin_number"] = index
 
-    return ok({"events": ordered, "count": len(ordered), "radius_miles": radius})
+    return ok(
+        {
+            "events": ordered,
+            "count": len(ordered),
+            "radius_miles": radius,
+            "fallback_nearest": fallback and bool(ordered),
+        }
+    )
 
 
 @events_bp.get("/events/<uuid:event_id>")
