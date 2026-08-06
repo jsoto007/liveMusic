@@ -1,8 +1,9 @@
 /** 05 — Post a show. Three fields, and it prints tonight. */
 
 import { useState } from "react";
-import { Platform, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import DateTimePicker, { type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { CheckCircle } from "lucide-react-native";
 import {
@@ -25,6 +26,7 @@ import {
   Heading,
   Kicker,
   Notice,
+  Plate,
   Rule,
   Screen,
   inputStyle,
@@ -33,25 +35,11 @@ import { api, useAuth } from "../lib/auth";
 import { colors, fonts, ink, space, tabular } from "../lib/theme";
 import type { RootNavigation } from "../navigation/types";
 
-/**
- * Build the instant from the date and time the band typed.
- *
- * Constructed from the parts so the device's own zone is the reference —
- * which is what someone means when they type "9pm" for a room down the road.
- */
-function toIsoInstant(date: string, time: string): string | null {
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date.trim());
-  const timeMatch = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
-  if (!dateMatch || !timeMatch) return null;
-
-  const [, year, month, day] = dateMatch.map(Number) as [unknown, number, number, number];
-  const [, hour, minute] = timeMatch.map(Number) as [unknown, number, number];
-  if (hour > 23 || minute > 59 || month < 1 || month > 12 || day < 1 || day > 31) return null;
-
-  const local = new Date(year, month - 1, day, hour, minute);
-  // Reject a date the calendar rolled over (e.g. 31 February).
-  if (local.getMonth() !== month - 1 || local.getDate() !== day) return null;
-  return local.toISOString();
+function initialShowTime(): Date {
+  const next = new Date();
+  next.setDate(next.getDate() + 1);
+  next.setHours(21, 0, 0, 0);
+  return next;
 }
 
 export function PostScreen() {
@@ -61,8 +49,8 @@ export function PostScreen() {
   const [headline, setHeadline] = useState("");
   const [venueName, setVenueName] = useState("");
   const [city, setCity] = useState(user?.home_city ?? "");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("21:00");
+  const [startsAt, setStartsAt] = useState(initialShowTime);
+  const [pickerMode, setPickerMode] = useState<"date" | "time" | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [price, setPrice] = useState("");
   const [ages, setAges] = useState<AgeRestriction>("21_plus");
@@ -144,11 +132,24 @@ export function PostScreen() {
     if (!result.canceled && result.assets[0]) setPoster(result.assets[0]);
   }
 
+  function changeStart(event: DateTimePickerEvent, selected?: Date) {
+    setPickerMode(null);
+    if (event.type !== "set" || !selected) return;
+    setStartsAt((current) => {
+      const next = new Date(current);
+      if (pickerMode === "date") {
+        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
+      } else {
+        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      }
+      return next;
+    });
+  }
+
   async function submit() {
     setError(null);
-    const startsAt = toIsoInstant(date, time);
-    if (!startsAt) {
-      setError("Enter the date as YYYY-MM-DD and the time as HH:MM.");
+    if (startsAt.getTime() <= Date.now()) {
+      setError("Choose a date and time in the future.");
       return;
     }
 
@@ -157,7 +158,7 @@ export function PostScreen() {
       const created = await api.post<{ event: EventListing }>("/api/v1/events", {
         headline: headline.trim(),
         artist_id: artists[0]?.id,
-        starts_at: startsAt,
+        starts_at: startsAt.toISOString(),
         venue: {
           name: venueName.trim(),
           city: city.trim(),
@@ -263,31 +264,55 @@ export function PostScreen() {
         <View style={{ flexDirection: "row", gap: space.s3 }}>
           <View style={{ flex: 1 }}>
             <Field label="Date">
-              <TextInput
-                style={inputStyle}
-                value={date}
-                onChangeText={setDate}
-                placeholder="2026-08-14"
-                placeholderTextColor={ink.faint}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
-                maxLength={10}
+              <Button
+                label={new Intl.DateTimeFormat(undefined, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                }).format(startsAt)}
+                onPress={() => setPickerMode("date")}
               />
             </Field>
           </View>
           <View style={{ flex: 1 }}>
             <Field label="First set">
-              <TextInput
-                style={inputStyle}
-                value={time}
-                onChangeText={setTime}
-                placeholder="21:00"
-                placeholderTextColor={ink.faint}
-                keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "default"}
-                maxLength={5}
+              <Button
+                label={new Intl.DateTimeFormat(undefined, {
+                  hour: "numeric",
+                  minute: "2-digit",
+                }).format(startsAt)}
+                onPress={() => setPickerMode("time")}
               />
             </Field>
           </View>
         </View>
+
+        {pickerMode ? (
+          <DateTimePicker
+            value={startsAt}
+            mode={pickerMode}
+            minimumDate={pickerMode === "date" ? new Date() : undefined}
+            minuteInterval={5}
+            onChange={changeStart}
+          />
+        ) : null}
+
+        <Field label="Photo" note="Choose a poster or show photo. It uploads directly to R2 storage.">
+          {poster ? (
+            <Plate
+              uri={poster.uri}
+              height={160}
+              placeholder="Show photo"
+              accessibilityLabel="Selected show photo"
+            />
+          ) : null}
+          <Button
+            label={poster ? "Photo chosen — change" : "Add a photo"}
+            style={poster ? { marginTop: space.s2 } : undefined}
+            onPress={() => void pickPoster()}
+          />
+        </Field>
       </View>
 
       <Rule style={{ marginVertical: space.s4 }} />
@@ -300,13 +325,6 @@ export function PostScreen() {
 
       {showMore ? (
         <View style={{ marginTop: space.s4 }}>
-          <Field label="Poster" note="Uploaded straight to storage — it never passes through our servers.">
-            <Button
-              label={poster ? "Poster chosen — change" : "Choose a poster"}
-              onPress={() => void pickPoster()}
-            />
-          </Field>
-
           <View style={{ flexDirection: "row", gap: space.s3 }}>
             <View style={{ flex: 1 }}>
               <Field label="Door price">
@@ -367,7 +385,11 @@ export function PostScreen() {
       <Kicker>How it will read</Kicker>
       <Rule strong style={{ marginTop: 4 }} />
       <View style={styles.previewRow}>
-        <Text style={styles.previewTime}>{time || "—:—"}</Text>
+        <Text style={styles.previewTime}>
+          {new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(
+            startsAt,
+          )}
+        </Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.previewArtist}>{headline.trim() || "Your band"}</Text>
           <Text style={styles.previewMeta}>

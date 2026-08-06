@@ -1,6 +1,6 @@
 /** A row on the bill: time, act, price — the paper's basic unit. */
 
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { EventListing } from "@live-msc/shared";
 
 import { colors, fonts, ink, space, tabular } from "../lib/theme";
@@ -42,6 +42,18 @@ export function ListingRow({
       <Text style={[styles.time, leading ? { color: colors.accent } : null]}>
         {leading ?? event.time_label ?? "—"}
       </Text>
+      <View style={styles.plate}>
+        {event.poster_url ? (
+          <Image
+            source={{ uri: event.poster_url }}
+            style={styles.poster}
+            resizeMode="cover"
+            accessibilityLabel={`Poster for ${event.headline}`}
+          />
+        ) : (
+          <Text style={styles.placeholder}>Photo</Text>
+        )}
+      </View>
       <View style={styles.body}>
         <Text style={styles.artist}>{event.headline}</Text>
         <Text style={styles.meta}>
@@ -78,6 +90,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: ink.soft,
     ...tabular,
+  },
+  plate: {
+    width: 62,
+    height: 62,
+    padding: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: ink.divider,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  poster: { width: "100%", height: "100%" },
+  placeholder: {
+    fontFamily: fonts.bodyItalic,
+    fontSize: 9,
+    color: ink.ghost,
+    textTransform: "uppercase",
   },
   body: { flex: 1, minWidth: 0 },
   artist: { fontFamily: fonts.heading, fontSize: 17, lineHeight: 21, color: colors.text },

@@ -156,15 +156,7 @@ def _warn_if_media_is_unconfigured(app) -> None:
     from .services.r2_storage import R2Storage
 
     with app.app_context():
-        if not R2Storage.is_configured():
-            pass  # fall through to the missing-vars warning below
-        else:
-            # Credentials are present — also verify the bucket has a CORS policy
-            # that allows PUT, because a missing CORS rule is the most common
-            # cause of "uploads work locally but fail in production": the browser
-            # blocks the preflight before a byte leaves the page and the only
-            # clue is a network error in the browser console, not a server log.
-            R2Storage.check_cors()
+        if R2Storage.is_configured():
             return
 
     missing = [

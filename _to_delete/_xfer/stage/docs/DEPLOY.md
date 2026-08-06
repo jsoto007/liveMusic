@@ -33,28 +33,13 @@ that needs them will work.
    ID** (it is in the URL, and on the R2 overview page).
 
 Then — and this is the step people skip — set the bucket's CORS policy.
-The server uses presigned **PUT** (not POST — R2 returns 501 on presigned POST),
-so `PUT` must be in `AllowedMethods` and `Content-Type` must be in
-`AllowedHeaders` (the signature pins it).
-
-**Option A — apply with the CLI (recommended):**
-
-```bash
-cd apps/server && flask --app app media configure-cors
-```
-
-This reads `FRONTEND_URL` from your environment and applies the correct policy
-automatically, including `HEAD` for completion checks.
-
-**Option B — apply manually** in the Cloudflare dashboard
-(**R2 → your bucket → Settings → CORS Policy**), replacing the origin with your
-real web URL once you have it (step 3 below):
+**R2 → your bucket → Settings → CORS Policy**:
 
 ```json
 [
   {
     "AllowedOrigins": ["https://live-msc-web.onrender.com"],
-    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedMethods": ["POST", "PUT", "GET"],
     "AllowedHeaders": ["Content-Type"],
     "ExposeHeaders": ["ETag"],
     "MaxAgeSeconds": 3600
@@ -62,9 +47,10 @@ real web URL once you have it (step 3 below):
 ]
 ```
 
-Add your custom domain to `AllowedOrigins` when you attach one. Without this
-the browser blocks every upload before a byte leaves the page, and the failure
-looks like a bug in the app rather than a bucket setting.
+Replace the origin with your real web URL once you have it (step 3 below), and
+add your custom domain when you attach one. Without this the browser blocks
+every upload before it leaves the page, and the failure looks like a bug in the
+app rather than a bucket setting.
 
 ### Get the Resend key
 

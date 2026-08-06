@@ -43,6 +43,13 @@ export function ListingRow({
       onClick={() => navigate(`/shows/${event.id}`)}
     >
       <span className="listing-time">{event.time_label ?? "—"}</span>
+      <span className="listing-plate" aria-hidden="true">
+        {event.poster_url ? (
+          <img src={event.poster_url} alt="" />
+        ) : (
+          <span>Photo</span>
+        )}
+      </span>
       <span className="listing-body">
         <span className="listing-artist">{event.headline}</span>
         <span className="listing-meta">

@@ -122,18 +122,31 @@ venue just gets no pin.
 ## How media works
 
 Audio samples and posters go straight to Cloudflare R2 — **the API never
-touches file bytes.** The server issues a presigned POST scoped to one object
-key, one content type and one size cap; the client uploads directly; the server
-then verifies the object with a `HEAD` before writing any durable row.
+touches file bytes.** The server issues a presigned PUT scoped to one object
+key and one content type; the client uploads directly; the server then verifies
+the object with a `HEAD` before writing any durable row.
 
-Presigned POST rather than PUT is deliberate: only POST carries a
-`content-length-range` condition, so R2 itself rejects an oversized upload. See
-[CLAUDE.md §4](CLAUDE.md) for the full flow and the threat model it is written
-against.
+Presigned PUT rather than POST is required because R2 does not implement the S3
+presigned-POST API (it returns `501 NotImplemented`). The size cap that POST
+would have enforced via `content-length-range` is instead applied at the HEAD
+check on completion — an oversized object is deleted rather than recorded. See
+[CLAUDE.md §4](CLAUDE.md) for the full flow and the threat model.
 
-R2 credentials live only in the server's environment. Set `R2_*` in `.env`;
-until they are set, upload endpoints return `STORAGE_UNAVAILABLE` (503) and the
-rest of the app runs normally.
+**The bucket needs a CORS policy** so the browser can PUT directly to R2 from
+your web app's origin. Without it every upload fails the preflight check before
+a byte leaves the page. Apply it with:
+
+```bash
+cd apps/server && flask --app app media configure-cors
+```
+
+Or set it manually in the Cloudflare dashboard (R2 → your bucket → Settings →
+CORS Policy). See [docs/DEPLOY.md](docs/DEPLOY.md) for the required policy.
+
+R2 credentials live only in the server's environment. Set `R2_*` in `.env`
+(local) or the Render dashboard (production); until they are set, upload
+endpoints return `STORAGE_UNAVAILABLE` (503) and the rest of the app runs
+normally.
 
 ## Deploying to Render
 

@@ -1,4 +1,6 @@
-"""Operator commands: `flask media sweep`, `flask seed demo`."""
+"""Operator commands: `flask media sweep`, `flask media configure-cors`, `flask seed demo`."""
+
+import json
 
 import click
 from flask.cli import AppGroup
@@ -20,6 +22,98 @@ def register_cli(app) -> None:
             f"Swept {result['tickets']} expired tickets, "
             f"removed {result['objects_deleted']} objects."
         )
+
+    @media.command("configure-cors")
+    @click.option(
+        "--origin",
+        "extra_origins",
+        multiple=True,
+        help="Additional allowed origin (repeatable). Use for custom domains.",
+    )
+    @click.option(
+        "--dry-run",
+        is_flag=True,
+        default=False,
+        help="Print the policy that would be applied without actually applying it.",
+    )
+    def configure_cors(extra_origins, dry_run):
+        """Apply the correct CORS policy to the R2 bucket.
+
+        Run this once after creating the bucket and again whenever the web
+        app's origin changes (new deploy suffix, custom domain, etc.).
+
+        The policy allows PUT, GET and HEAD from every origin in FRONTEND_URL
+        and CORS_ORIGINS plus any --origin flags given here, and from localhost
+        in development.  Without it the browser blocks every upload before a
+        single byte leaves the page.
+
+        \\b
+        Examples:
+
+          # Apply using the origins already in your config
+          flask --app app media configure-cors
+
+          # Preview without touching the bucket
+          flask --app app media configure-cors --dry-run
+
+          # Also allow a custom domain you haven't wired into FRONTEND_URL yet
+          flask --app app media configure-cors --origin https://livemsc.example.com
+        """
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        from .security import parse_origins
+        from .services.r2_storage import build_client
+
+        client = build_client()
+        if client is None:
+            raise click.ClickException(
+                "R2 is not configured. Set R2_ACCOUNT_ID (or R2_ENDPOINT_URL), "
+                "R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET, then retry."
+            )
+
+        origins = list(parse_origins(app))
+        for o in extra_origins:
+            cleaned = o.strip().rstrip("/")
+            if cleaned and cleaned not in origins:
+                origins.append(cleaned)
+
+        if not origins:
+            raise click.ClickException(
+                "No origins found. Set FRONTEND_URL (or CORS_ORIGINS) in your "
+                "environment, or pass --origin https://your-web-app-url."
+            )
+
+        bucket = app.config["R2_BUCKET"]
+        # R2 uses presigned PUT (not POST — R2 returns 501 on presigned POST).
+        # AllowedHeaders must include Content-Type because the presigned
+        # signature pins it; omitting it makes the preflight fail even when the
+        # origin is allowed.
+        policy = [
+            {
+                "AllowedOrigins": origins,
+                "AllowedMethods": ["PUT", "GET", "HEAD"],
+                "AllowedHeaders": ["Content-Type"],
+                "ExposeHeaders": ["ETag"],
+                "MaxAgeSeconds": 3600,
+            }
+        ]
+
+        click.echo(f"CORS policy for bucket '{bucket}':")
+        click.echo(json.dumps(policy, indent=2))
+
+        if dry_run:
+            click.echo("\n(dry run — policy was NOT applied)")
+            return
+
+        try:
+            client.put_bucket_cors(
+                Bucket=bucket,
+                CORSConfiguration={"CORSRules": policy},
+            )
+        except (ClientError, BotoCoreError) as exc:
+            raise click.ClickException(f"Failed to apply CORS policy: {exc}") from exc
+
+        click.echo(f"\nCORS policy applied to '{bucket}'. Uploads should now work.")
 
     @seed.command("demo")
     @click.option("--city", default="Providence", show_default=True)
