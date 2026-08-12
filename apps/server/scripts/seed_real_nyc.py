@@ -27,6 +27,8 @@ import uuid
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+from botocore.exceptions import BotoCoreError, ClientError
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app  # noqa: E402
@@ -244,7 +246,16 @@ def _upload_poster(event: Event, photos_dir: str, filename: str) -> bool:
     from app.config import Config as _Config  # local import: config is app-bound
 
     bucket = os.environ.get("R2_BUCKET") or _Config.R2_BUCKET
-    client.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
+    try:
+        client.put_object(Bucket=bucket, Key=key, Body=body, ContentType=content_type)
+    except (ClientError, BotoCoreError) as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code", type(exc).__name__)
+        print(
+            f"  ! R2 upload denied for {filename} ({code}). Check that R2_BUCKET "
+            "matches the token scope and the token has Object Read & Write permission.",
+            file=sys.stderr,
+        )
+        return False
 
     head = R2Storage.head_object(key)
     if head is None or head.get("size_bytes") != len(body):

@@ -37,10 +37,10 @@ services:
     region: oregon
     rootDir: apps/server
     buildCommand: pip install -e .
-    # Migrations and the idempotent editorial-event poster backfill run before
-    # the new instance takes traffic. Requiring posters makes a missing R2
-    # secret fail visibly at deploy time instead of serving blank plates.
-    preDeployCommand: flask --app app db upgrade && python scripts/seed_real_nyc.py --require-posters
+    # Only schema-critical work gates an API deploy. Media backfills are run
+    # separately after validating R2 permissions; a storage-token problem must
+    # not keep an otherwise healthy API release from starting.
+    preDeployCommand: flask --app app db upgrade
     startCommand: gunicorn wsgi:app --workers 2 --threads 4 --timeout 60 --access-logfile -
     healthCheckPath: /health
     autoDeployTrigger: commit
