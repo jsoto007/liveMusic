@@ -153,6 +153,27 @@ a confusing way to spend an afternoon.
 Now that you know the web URL, go back to the bucket's CORS policy and set
 `AllowedOrigins` to it. Uploads will not work until you do.
 
+### Backfill the bundled event posters
+
+The API deploy deliberately does not run media backfills: a bad storage token
+must not prevent an otherwise healthy API from starting. After confirming that
+`R2_BUCKET` is the bucket scoped to the token and the token permission is
+**Object Read & Write**, open the API service's Render Shell and run:
+
+```bash
+python scripts/seed_real_nyc.py --require-posters
+```
+
+Success ends with `posters missing: 0`. `AccessDenied` means the bucket name
+and token scope do not match, or the token lacks write permission. Correct the
+R2 values in the Render environment before retrying.
+
+Until the backfill lands, nothing prints blank: a listing with no uploaded
+poster falls back to a bundled house stock photograph matched to its genre
+(`apps/web/public/stock/`, mirrored in the mobile bundle), and the same
+fallback catches a poster URL that has expired on a long-open page. Real
+posters always win over the stock the moment they exist.
+
 ---
 
 ## 4. Check it came up

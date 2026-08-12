@@ -228,6 +228,29 @@ export const GENRES: ReadonlyArray<{ value: Genre; label: string }> = [
   { value: "other", label: "Other" },
 ];
 
+/**
+ * House stock photographs, one per genre — the stand-in plate for a listing
+ * whose poster has not been uploaded yet, so no post ever prints without a
+ * photograph. Derivatives of the original editorial images checked in under
+ * `apps/server/seed_photos/`: no performer likenesses, no logos, no
+ * third-party credit line required. The web serves them from `public/stock/`;
+ * mobile bundles the same files from `assets/stock/` (held in lockstep by
+ * `apps/mobile/lib/stockPosters.test.ts`).
+ */
+export const STOCK_POSTERS: Readonly<Record<Genre, string>> = {
+  rock_punk: "rock_punk.jpg",
+  jazz: "jazz.jpg",
+  classical: "classical.jpg",
+  electronic: "electronic.jpg",
+  folk_country: "folk_country.jpg",
+  metal: "metal.jpg",
+  hip_hop: "hip_hop.jpg",
+  gospel_soul: "gospel_soul.jpg",
+  open_mic: "open_mic.jpg",
+  festival: "festival.jpg",
+  other: "other.jpg",
+};
+
 export const AGE_OPTIONS: ReadonlyArray<{ value: AgeRestriction; label: string }> = [
   { value: "all_ages", label: "All ages" },
   { value: "18_plus", label: "18+" },

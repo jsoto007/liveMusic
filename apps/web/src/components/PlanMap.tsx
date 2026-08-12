@@ -31,6 +31,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { EventListing } from "@live-msc/shared";
 
+import { stockPosterUrl } from "../lib/stock";
+
 export const TILE_URL = "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
@@ -108,9 +110,9 @@ function escapeHtml(value: string): string {
 function popupHtml(event: EventListing): string {
   const meta = [event.day_label, event.time_label].filter(Boolean).join(" · ");
   const priceLine = [event.price_label, event.distance_label].filter(Boolean).join(" · ");
-  const image = event.poster_url
-    ? `<div class="mappopup-plate plate"><img src="${escapeHtml(event.poster_url)}" alt="" /></div>`
-    : "";
+  // A missing poster falls back to the genre's house stock, same as the rows.
+  const posterUrl = event.poster_url ?? stockPosterUrl(event.genre);
+  const image = `<div class="mappopup-plate plate"><img src="${escapeHtml(posterUrl)}" alt="" /></div>`;
   const credit = event.poster_credit
     ? `<p class="mappopup-credit">${escapeHtml(event.poster_credit)}</p>`
     : "";

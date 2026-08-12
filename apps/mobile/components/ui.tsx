@@ -5,7 +5,7 @@
  * unfilled, hairlines carry the structure, figures set tabular.
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Text,
   View,
+  type ImageRequireSource,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -178,19 +179,30 @@ export function Plate({
   placeholder = "No image",
   height = 190,
   accessibilityLabel,
+  fallbackSource,
 }: {
   uri?: string | null;
   placeholder?: string;
   height?: number;
   accessibilityLabel: string;
+  /** Shown when `uri` is absent or fails to load. Posters are short-lived
+      presigned URLs, so a plate left on screen past the TTL must fall back
+      to something rather than go blank. */
+  fallbackSource?: ImageRequireSource;
 }) {
+  // Tracked per URI rather than as a boolean so a plate reused for a new
+  // event (a re-fetched detail, a new featured pick) retries its real poster.
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const posterUri = uri && uri !== failedUri ? uri : null;
+  const source = posterUri ? { uri: posterUri } : fallbackSource;
   return (
     <View style={[styles.plate, { height }]}>
-      {uri ? (
+      {source ? (
         <Image
-          source={{ uri }}
+          source={source}
           style={styles.plateImage}
           resizeMode="cover"
+          onError={posterUri ? () => setFailedUri(posterUri) : undefined}
           accessibilityLabel={accessibilityLabel}
           accessible
         />
