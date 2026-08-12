@@ -20,6 +20,7 @@ import { Empty, Notice, Plate, Rule, SaveButton, Spinner } from "../components/P
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
+import { stockPosterUrl } from "../lib/stock";
 
 export function BillPage() {
   const [day, setDay] = useState<"all" | DayBucket>("all");
@@ -85,7 +86,8 @@ export function BillPage() {
           </p>
           <Plate
             src={featured.poster_url}
-            alt={`Poster for ${featured.headline}`}
+            fallbackSrc={stockPosterUrl(featured.genre)}
+            alt={featured.poster_url ? `Poster for ${featured.headline}` : ""}
             placeholder={`poster / press shot — ${featured.headline}`}
           />
           {featured.poster_credit ? (

@@ -13,17 +13,36 @@ export function Plate({
   src,
   alt,
   placeholder = "No image",
+  fallbackSrc,
 }: {
   src?: string | null;
   alt: string;
   placeholder?: string;
+  /** Shown when `src` is absent or fails to load. Posters are short-lived
+      presigned URLs, so a plate left on screen past the TTL must fall back to
+      something rather than a broken-image glyph. */
+  fallbackSrc?: string;
 }) {
+  const shown = src ?? fallbackSrc;
   return (
     <div className="plate plate-frame">
-      {src ? (
+      {shown ? (
         // `alt` is required by the caller: a poster carries the act's name and
-        // a screen-reader user needs it as much as anyone.
-        <img src={src} alt={alt} loading="lazy" />
+        // a screen-reader user needs it as much as anyone. (Callers pass ""
+        // when the plate is only the house stock — that image is decorative.)
+        <img
+          src={shown}
+          alt={alt}
+          loading="lazy"
+          onError={
+            fallbackSrc
+              ? (event) => {
+                  const img = event.currentTarget;
+                  if (!img.src.endsWith(fallbackSrc)) img.src = fallbackSrc;
+                }
+              : undefined
+          }
+        />
       ) : (
         <span className="plate-empty">{placeholder}</span>
       )}

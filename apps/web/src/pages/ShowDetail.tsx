@@ -16,6 +16,7 @@ import { Notice, Plate, Rule, SaveButton, SectionHead, Spinner } from "../compon
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
+import { stockPosterUrl } from "../lib/stock";
 
 export function ShowDetailPage() {
   const { eventId = "" } = useParams();
@@ -72,7 +73,8 @@ export function ShowDetailPage() {
       <div style={{ marginTop: "var(--space-4)" }}>
         <Plate
           src={event.poster_url}
-          alt={`Poster for ${event.headline}`}
+          fallbackSrc={stockPosterUrl(event.genre)}
+          alt={event.poster_url ? `Poster for ${event.headline}` : ""}
           placeholder="show poster"
         />
         {event.poster_credit ? (

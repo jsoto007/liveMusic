@@ -28,6 +28,7 @@ import {
   Spinner,
 } from "../components/ui";
 import { api, useAuth } from "../lib/auth";
+import { stockPosters } from "../lib/stockPosters";
 import { colors, fonts, ink, space, tabular } from "../lib/theme";
 import { useResource } from "../lib/useResource";
 import type { RootNavigation } from "../navigation/types";
@@ -117,9 +118,14 @@ export function BillScreen() {
           </Kicker>
           <Plate
             uri={featured.poster_url}
+            fallbackSource={stockPosters[featured.genre]}
             height={182}
             placeholder={`poster / press shot — ${featured.headline}`}
-            accessibilityLabel={`Poster for ${featured.headline}`}
+            accessibilityLabel={
+              featured.poster_url
+                ? `Poster for ${featured.headline}`
+                : `${featured.genre_label} photograph`
+            }
           />
           {featured.poster_credit ? (
             <Text style={styles.plateCredit}>{featured.poster_credit}</Text>

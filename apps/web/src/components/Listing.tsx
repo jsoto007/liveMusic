@@ -9,6 +9,7 @@
 import { useNavigate } from "react-router-dom";
 import type { DaySection, EventListing } from "@live-msc/shared";
 
+import { fallBackToStock, stockPosterUrl } from "../lib/stock";
 import { SectionHead } from "./Primitives";
 
 export function ListingRow({
@@ -44,11 +45,14 @@ export function ListingRow({
     >
       <span className="listing-time">{event.time_label ?? "—"}</span>
       <span className="listing-plate" aria-hidden="true">
-        {event.poster_url ? (
-          <img src={event.poster_url} alt="" />
-        ) : (
-          <span>Photo</span>
-        )}
+        {/* No uploaded poster prints the genre's house stock, so a row never
+            runs without a photograph. */}
+        <img
+          src={event.poster_url ?? stockPosterUrl(event.genre)}
+          alt=""
+          loading="lazy"
+          onError={(imgEvent) => fallBackToStock(imgEvent, event.genre)}
+        />
       </span>
       <span className="listing-body">
         <span className="listing-artist">{event.headline}</span>

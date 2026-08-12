@@ -18,6 +18,7 @@ import {
   Spinner,
 } from "../components/ui";
 import { api, useAuth } from "../lib/auth";
+import { stockPosters } from "../lib/stockPosters";
 import { colors, fonts, ink, space, tabular } from "../lib/theme";
 import { useResource } from "../lib/useResource";
 import type { RootNavigation, RootStackParamList } from "../navigation/types";
@@ -75,9 +76,14 @@ export function ShowScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Plate
         uri={event.poster_url}
+        fallbackSource={stockPosters[event.genre]}
         height={200}
         placeholder="show poster"
-        accessibilityLabel={`Poster for ${event.headline}`}
+        accessibilityLabel={
+          event.poster_url
+            ? `Poster for ${event.headline}`
+            : `${event.genre_label} photograph`
+        }
       />
       {event.poster_credit ? <Text style={styles.plateCredit}>{event.poster_credit}</Text> : null}
 

@@ -1,8 +1,10 @@
 /** A row on the bill: time, act, price — the paper's basic unit. */
 
+import { useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { EventListing } from "@live-msc/shared";
 
+import { stockPosters } from "../lib/stockPosters";
 import { colors, fonts, ink, space, tabular } from "../lib/theme";
 
 export function ListingRow({
@@ -18,6 +20,9 @@ export function ListingRow({
   leading?: string;
 }) {
   const venue = event.venue;
+  const [failedUri, setFailedUri] = useState<string | null>(null);
+  const posterUri =
+    event.poster_url && event.poster_url !== failedUri ? event.poster_url : null;
 
   // Spelled out for VoiceOver/TalkBack: read as one listing, not as a run of
   // disconnected fragments.
@@ -43,16 +48,18 @@ export function ListingRow({
         {leading ?? event.time_label ?? "—"}
       </Text>
       <View style={styles.plate}>
-        {event.poster_url ? (
-          <Image
-            source={{ uri: event.poster_url }}
-            style={styles.poster}
-            resizeMode="cover"
-            accessibilityLabel={`Poster for ${event.headline}`}
-          />
-        ) : (
-          <Text style={styles.placeholder}>Photo</Text>
-        )}
+        {/* No uploaded poster prints the genre's house stock, so a row never
+            runs without a photograph. Failures are tracked per URI so a
+            recycled row retries the next event's real poster. */}
+        <Image
+          source={posterUri ? { uri: posterUri } : stockPosters[event.genre]}
+          style={styles.poster}
+          resizeMode="cover"
+          onError={posterUri ? () => setFailedUri(posterUri) : undefined}
+          accessibilityLabel={
+            posterUri ? `Poster for ${event.headline}` : `${event.genre_label} photograph`
+          }
+        />
       </View>
       <View style={styles.body}>
         <Text style={styles.artist}>{event.headline}</Text>
@@ -101,12 +108,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   poster: { width: "100%", height: "100%" },
-  placeholder: {
-    fontFamily: fonts.bodyItalic,
-    fontSize: 9,
-    color: ink.ghost,
-    textTransform: "uppercase",
-  },
   body: { flex: 1, minWidth: 0 },
   artist: { fontFamily: fonts.heading, fontSize: 17, lineHeight: 21, color: colors.text },
   meta: { fontFamily: fonts.body, fontSize: 11.5, lineHeight: 17, color: ink.soft, marginTop: 2 },

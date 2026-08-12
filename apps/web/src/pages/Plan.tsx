@@ -22,6 +22,7 @@ import { Empty, Notice, SectionHead, Spinner } from "../components/Primitives";
 import { PlanMap, type Viewport } from "../components/PlanMap";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
+import { fallBackToStock, stockPosterUrl } from "../lib/stock";
 
 interface NearbyResponse {
   events: EventListing[];
@@ -173,7 +174,12 @@ export function PlanPage() {
             {event.pin_number}
           </span>
           <span className="listing-plate" aria-hidden="true">
-            {event.poster_url ? <img src={event.poster_url} alt="" /> : <span>Photo</span>}
+            <img
+              src={event.poster_url ?? stockPosterUrl(event.genre)}
+              alt=""
+              loading="lazy"
+              onError={(imgEvent) => fallBackToStock(imgEvent, event.genre)}
+            />
           </span>
           <span className="listing-body">
             <span className="listing-artist">{event.headline}</span>
