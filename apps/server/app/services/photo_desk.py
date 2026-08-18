@@ -80,11 +80,15 @@ def resolve(session, editor: User, review: ImageReview, action: str) -> ImageRev
         # a failed delete leaves an orphan for reconciliation, not a broken
         # review. The row's status is the editorial record either way.
         R2Storage.delete_object(review.object_key)
+        # A system notice, deliberately without an actor: the desk speaks as
+        # the paper, so the individual editor's identity must not ride along
+        # in the payload — and a block against that editor's account must
+        # not be able to suppress a moderation notice. Who acted is still
+        # recorded on the review row itself.
         inbox.notify(
             session,
             review.uploader_user_id,
             NotificationKind.IMAGE_REMOVED,
-            actor=editor,
         )
 
     return review

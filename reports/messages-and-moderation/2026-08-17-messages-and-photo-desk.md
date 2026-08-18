@@ -107,7 +107,26 @@ for social events).
   Ada's reply preview; the Thread screen renders the same correspondence the
   web wrote. Mobile UI otherwise verified statically (typecheck/lint/vitest).
 
-## 5. Follow-ups
+## 5. Post-review fixes (PR #6)
+
+Two findings from automated PR review, both confirmed and fixed same-day:
+
+1. **Removal notices are now true system notifications.** The
+   `image_removed` notification was created with `actor=editor`, which (a)
+   shipped the acting editor's `UserCard` in the payload despite the copy
+   naming nobody, and (b) let the generic block check drop the notice if the
+   uploader had blocked that editor's account. The notify call now passes no
+   actor: the payload names nobody and a block can never mute moderation.
+   Who acted remains on the review row for the audit trail.
+2. **Profile reviews honor blocks.** `/users/<handle>/reviews` (and the
+   profile header's review count) now apply the same mutual-visibility
+   predicate as the event-scoped review reads — the profile page was a side
+   door to review bodies the event pages hid.
+
+Both carry regression tests (`test_removal_notice_is_a_system_notification`,
+`test_profile_reviews_honor_blocks_both_ways`).
+
+## 6. Follow-ups
 
 - Automated NSFW classification at the `queue_image` seam (external service
   + credentials decision).

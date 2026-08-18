@@ -84,9 +84,16 @@ def get_profile(handle):
         .scalar()
         or 0
     )
+    # Counted under the same visibility rule the reviews column applies, so a
+    # blocked viewer is never shown a figure over an empty page.
     review_count = int(
         db.session.query(db.func.count(Review.id))
-        .filter(Review.author_user_id == user.id)
+        .filter(
+            Review.author_user_id == user.id,
+            social.visible_author_clause(
+                viewer.id if viewer else None, Review.author_user_id
+            ),
+        )
         .scalar()
         or 0
     )
@@ -214,11 +221,18 @@ def list_user_reviews(handle):
     if err:
         return err
 
-    base = db.session.query(Review).filter(Review.author_user_id == user.id)
+    viewer = load_current_user()
+    # The same mutual-invisibility rule the event-scoped reads apply: a block
+    # in either direction empties this column for the viewer. Without it the
+    # profile page was a side door to review bodies the event pages hid.
+    base = db.session.query(Review).filter(
+        Review.author_user_id == user.id,
+        social.visible_author_clause(
+            viewer.id if viewer else None, Review.author_user_id
+        ),
+    )
     total = int(base.with_entities(db.func.count(Review.id)).scalar() or 0)
     rows = base.order_by(Review.created_at.desc()).limit(limit).offset(offset).all()
-
-    viewer = load_current_user()
     return ok(
         {
             "reviews": [

@@ -166,3 +166,33 @@ def test_profile_lists_a_readers_reviews(client, auth, make_event):
     data = response.get_json()["data"]
     assert data["total"] == 1
     assert data["reviews"][0]["event"]["headline"] == "Night Shift"
+
+
+def test_profile_reviews_honor_blocks_both_ways(client, auth, make_event):
+    """The profile page must not be a side door around mutual invisibility."""
+    event = make_event(hours_ahead=-2)
+    ada = auth(email="ada@example.com")
+    ben = auth(email="ben@example.com")
+    _review(client, ada, event, rating=5, body="Ada's verdict")
+    ada_handle = _user("ada@example.com").handle
+    ben_handle = _user("ben@example.com").handle
+
+    client.post(f"/api/v1/users/{ada_handle}/block", headers=ben)
+
+    # The blocker no longer sees the blocked party's column…
+    seen_by_ben = client.get(f"/api/v1/users/{ada_handle}/reviews", headers=ben)
+    assert seen_by_ben.get_json()["data"]["total"] == 0
+    # …and the blocked party cannot read the blocker's either.
+    _review(client, ben, make_event(hours_ahead=-3), rating=2)
+    seen_by_ada = client.get(f"/api/v1/users/{ben_handle}/reviews", headers=ada)
+    assert seen_by_ada.get_json()["data"]["total"] == 0
+
+    # The profile header's figure matches the emptied column.
+    profile = client.get(f"/api/v1/users/{ada_handle}", headers=ben).get_json()[
+        "data"
+    ]["profile"]
+    assert profile["review_count"] == 0
+
+    # Uninvolved readers still see everything.
+    anonymous = client.get(f"/api/v1/users/{ada_handle}/reviews")
+    assert anonymous.get_json()["data"]["total"] == 1

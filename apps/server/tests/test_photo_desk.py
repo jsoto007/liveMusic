@@ -163,6 +163,37 @@ def test_remove_strips_deletes_and_notifies(client, auth, make_user, stub_r2):
     assert len(removal_notes) == 1
 
 
+def test_removal_notice_is_a_system_notification(client, auth, make_user, stub_r2):
+    """The notice names no editor and survives the uploader having blocked
+    the editor's account — a block must not mute moderation."""
+    headers = auth(email="ada@example.com")
+    _upload_avatar(client, stub_r2, headers, "ada@example.com")
+
+    admin = _admin_headers(client, make_user)
+    # Ada blocks the editor's account before the desk acts.
+    editor_handle = _user("editor@example.com").handle
+    assert (
+        client.post(f"/api/v1/users/{editor_handle}/block", headers=headers).status_code
+        == 200
+    )
+
+    review_id = client.get("/api/v1/admin/image-reviews", headers=admin).get_json()[
+        "data"
+    ]["reviews"][0]["id"]
+    client.post(
+        f"/api/v1/admin/image-reviews/{review_id}/resolve",
+        json={"action": "remove"},
+        headers=admin,
+    )
+
+    inbox = client.get("/api/v1/me/notifications", headers=headers).get_json()["data"]
+    lines = [n for n in inbox["notifications"] if n["kind"] == "image_removed"]
+    assert len(lines) == 1
+    assert lines[0]["line"] == "An editor removed one of your photos"
+    # No actor rides along — the desk speaks as the paper.
+    assert lines[0]["actor"] is None
+
+
 def test_removing_a_stale_key_leaves_the_replacement_alone(
     client, auth, make_user, stub_r2
 ):
