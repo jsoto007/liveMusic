@@ -289,6 +289,16 @@ def get_event(event_id):
     if user is not None:
         interest = db.session.get(EventInterest, {"user_id": user.id, "event_id": event.id})
 
+    from ..models import Comment
+    from ..services import reviews as review_service
+
+    comment_count = int(
+        db.session.query(db.func.count(Comment.id))
+        .filter(Comment.event_id == event.id)
+        .scalar()
+        or 0
+    )
+
     return ok(
         {
             "event": serialize_event(
@@ -296,6 +306,8 @@ def get_event(event_id):
                 detail=True,
                 interest=interest,
                 can_manage=may_manage_event_media(event, user),
+                comment_count=comment_count,
+                rating=review_service.aggregate(db.session, event.id),
             )
         }
     )

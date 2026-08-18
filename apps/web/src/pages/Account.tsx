@@ -24,9 +24,11 @@ import {
 import { AddressField } from "../components/AddressField";
 import { ImageUpload } from "../components/ImageUpload";
 import { Empty, Notice, Plate, Rule, SectionHead, Spinner } from "../components/Primitives";
+import { Avatar } from "../components/Social";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
+import type { UserCard } from "@live-msc/shared";
 
 export function AccountPage() {
   const { user, artists, initializing, signOut, refreshProfile } = useAuth();
@@ -64,17 +66,33 @@ export function AccountPage() {
   return (
     <div className="page page-narrow">
       <p className="kicker kicker-accent">Account</p>
-      <h1 className="detail-title">{user.display_name}</h1>
-      <p className="detail-support">
-        {user.home_city ?? "No home city set"} · {user.email}
-      </p>
+      <div className="profile-head" style={{ paddingTop: 0 }}>
+        <Avatar user={user} size="lg" />
+        <div>
+          <h1 className="detail-title" style={{ margin: 0 }}>{user.display_name}</h1>
+          <p className="detail-support">
+            @{user.handle} · {user.home_city ?? "No home city set"} · {user.email}
+          </p>
+          <Link className="btn btn-ghost btn-quiet" to={`/u/${user.handle}`}>
+            View your public page →
+          </Link>
+        </div>
+      </div>
 
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       {!user.email_verified ? <VerifyBanner email={user.email ?? ""} /> : null}
 
+      <PublicProfilePanel
+        handle={user.handle}
+        bio={user.bio}
+        userId={user.id}
+        hasAvatar={Boolean(user.avatar_url)}
+        onSaved={refreshProfile}
+      />
       <HomeCityField currentCity={user.home_city} onSaved={refreshProfile} />
       <EmailPreferencesPanel />
+      <BlockedPeoplePanel />
 
       {artists.map((artist) => (
         <BandPanel key={artist.id} artist={artist} onChanged={refreshProfile} />
@@ -347,6 +365,159 @@ function BandPanel({ artist, onChanged }: { artist: Artist; onChanged: () => Pro
         </div>
       ))}
     </section>
+  );
+}
+
+/** The public face: your @handle, your line of bio, your photograph. */
+function PublicProfilePanel({
+  handle,
+  bio,
+  userId,
+  hasAvatar,
+  onSaved,
+}: {
+  handle: string;
+  bio: string | null;
+  userId: string;
+  hasAvatar: boolean;
+  onSaved: () => Promise<void>;
+}) {
+  const [draftHandle, setDraftHandle] = useState(handle);
+  const [draftBio, setDraftBio] = useState(bio ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const dirty =
+    draftHandle.trim().toLowerCase() !== handle ||
+    draftBio.trim() !== (bio ?? "").trim();
+
+  async function save() {
+    setBusy(true);
+    setError(null);
+    setSaved(false);
+    const payload: Record<string, unknown> = {};
+    if (draftHandle.trim().toLowerCase() !== handle) {
+      payload.handle = draftHandle.trim();
+    }
+    if (draftBio.trim() !== (bio ?? "").trim()) {
+      payload.bio = draftBio.trim() || null;
+    }
+    const result = await api.patch("/api/v1/me", payload);
+    setBusy(false);
+    if (!result.ok) {
+      setError(
+        result.code === "HANDLE_TAKEN"
+          ? "That handle is already in use — try another."
+          : result.error,
+      );
+      return;
+    }
+    setSaved(true);
+    await onSaved();
+  }
+
+  return (
+    <>
+      <SectionHead title="Public profile" />
+      <div style={{ marginTop: "var(--space-3)" }}>
+        <ImageUpload
+          purpose="user_avatar"
+          targetId={userId}
+          hasImage={hasAvatar}
+          addLabel="Add a photograph of yourself"
+          replaceLabel="Replace your photograph"
+          onUploaded={async () => {
+            await onSaved();
+          }}
+          onError={setError}
+        />
+
+        <label className="field" style={{ marginTop: "var(--space-3)" }}>
+          Handle
+          <input
+            className="input"
+            maxLength={30}
+            value={draftHandle}
+            onChange={(event) => {
+              setDraftHandle(event.target.value);
+              setSaved(false);
+            }}
+            aria-describedby="handle-note"
+          />
+        </label>
+        <p className="form-note" id="handle-note">
+          3–30 characters, a–z, 0–9 and _. Your page lives at /u/{draftHandle.trim().toLowerCase() || "…"}
+          {" "}— old links stop working when you change it.
+        </p>
+
+        <label className="field" style={{ marginTop: "var(--space-3)" }}>
+          A line about you
+          <textarea
+            className="input"
+            rows={2}
+            maxLength={500}
+            placeholder="Fan of small rooms and long encores."
+            value={draftBio}
+            onChange={(event) => {
+              setDraftBio(event.target.value);
+              setSaved(false);
+            }}
+          />
+        </label>
+
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        {dirty ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void save()}
+            disabled={busy}
+            style={{ marginTop: "var(--space-2)" }}
+          >
+            {busy ? "Saving…" : "Save profile"}
+          </button>
+        ) : null}
+        {saved && !dirty ? <p className="form-note">Saved.</p> : null}
+      </div>
+    </>
+  );
+}
+
+/** The people you've shut out, and the way back. */
+function BlockedPeoplePanel() {
+  const { data, error, reload } = useResource<{ people: UserCard[] }>(
+    () => api.get<{ people: UserCard[] }>("/api/v1/me/blocks"),
+    [],
+  );
+
+  async function unblock(handle: string) {
+    await api.delete(`/api/v1/users/${handle}/block`);
+    reload();
+  }
+
+  if (data && data.people.length === 0) return null;
+
+  return (
+    <>
+      <SectionHead title="Blocked readers" />
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      {data?.people.map((person) => (
+        <div key={person.id} className="person-row">
+          <span>
+            <span className="byline-name">{person.display_name}</span>
+            <span className="byline-sub"> @{person.handle}</span>
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-quiet"
+            onClick={() => void unblock(person.handle)}
+          >
+            Unblock
+          </button>
+        </div>
+      ))}
+    </>
   );
 }
 

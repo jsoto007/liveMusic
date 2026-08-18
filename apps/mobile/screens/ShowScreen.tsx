@@ -1,11 +1,14 @@
-/** 04 — A show. The full listing. */
+/** 04 — A show. The full listing, its reviews, and the talk underneath. */
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
-import { Bookmark, Ticket } from "lucide-react-native";
+import { Bookmark, ListPlus, Ticket } from "lucide-react-native";
 import type { EventListing } from "@live-msc/shared";
 
+import { AddToListSheet } from "../components/AddToListSheet";
+import { CommentsSection } from "../components/CommentsSection";
+import { ReviewsSection } from "../components/ReviewsSection";
 import {
   Body,
   Button,
@@ -43,6 +46,7 @@ export function ShowScreen() {
   );
 
   const event = data?.event ?? null;
+  const [listSheetOpen, setListSheetOpen] = useState(false);
 
   const setInterest = useCallback(
     async (patch: { saved?: boolean; going?: boolean }) => {
@@ -165,6 +169,15 @@ export function ShowScreen() {
         />
       </View>
 
+      <Button
+        label="Add to a list"
+        icon={<ListPlus size={16} color={colors.text} strokeWidth={1.5} />}
+        style={{ marginTop: space.s2 }}
+        onPress={() =>
+          user ? setListSheetOpen(true) : navigation.navigate("SignIn")
+        }
+      />
+
       {event.artist ? (
         <Button
           label={`More from ${event.artist.name} →`}
@@ -173,6 +186,15 @@ export function ShowScreen() {
           onPress={() => navigation.navigate("Band", { handle: event.artist!.slug })}
         />
       ) : null}
+
+      <ReviewsSection eventId={params.eventId} alreadyStarted={event.already_started} />
+      <CommentsSection eventId={params.eventId} />
+
+      <AddToListSheet
+        visible={listSheetOpen}
+        eventId={params.eventId}
+        onClose={() => setListSheetOpen(false)}
+      />
     </ScrollView>
   );
 }

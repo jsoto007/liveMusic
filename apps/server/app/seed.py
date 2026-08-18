@@ -19,6 +19,7 @@ from .models import (
     Venue,
     utcnow,
 )
+from .utils.handles import unique_handle
 from .utils.passwords import hash_password
 from .utils.slugs import unique_slug
 
@@ -170,6 +171,7 @@ def seed_demo_data(session, *, city: str = "Providence") -> dict:
             email="band@example.com",
             password_hash=hash_password("demo-password-1234"),
             display_name="Ada Fournier",
+            handle=unique_handle(session, "ada_fournier"),
             home_city=city,
             role=UserRole.ARTIST,
         )

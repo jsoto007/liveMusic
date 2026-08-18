@@ -23,6 +23,13 @@ import {
   type Place,
 } from "@live-msc/shared";
 
+import {
+  AccountRow,
+  BlockedPeoplePanel,
+  MyApplicationsPanel,
+  MyGigsPanel,
+  PublicProfilePanel,
+} from "../components/AccountPanels";
 import { AddressField } from "../components/AddressField";
 import {
   Body,
@@ -105,12 +112,35 @@ export function AccountScreen() {
 
       {!user.email_verified ? <VerifyBanner email={user.email ?? ""} /> : null}
 
+      <PublicProfilePanel />
+
+      <SectionHead title="Your pages" />
+      <AccountRow
+        label="Notifications"
+        note="Follows, comments and gig news"
+        onPress={() => navigation.navigate("Notifications")}
+      />
+      <AccountRow
+        label="Messages"
+        note="Hire enquiries and correspondence"
+        onPress={() => navigation.navigate("Messages")}
+      />
+      <AccountRow
+        label="The classifieds"
+        note="Gigs wanted, and the bands for hire"
+        onPress={() => navigation.navigate("Classifieds")}
+      />
+
       <HomeCityField currentCity={user.home_city} onSaved={refreshProfile} />
       <EmailPreferencesPanel />
 
       {artists.map((artist) => (
         <BandPanel key={artist.id} artist={artist} />
       ))}
+
+      <MyGigsPanel />
+      <MyApplicationsPanel />
+      <BlockedPeoplePanel />
 
       <SectionHead title="Start a band account" />
       <View style={{ flexDirection: "row", gap: space.s2, marginTop: space.s3 }}>

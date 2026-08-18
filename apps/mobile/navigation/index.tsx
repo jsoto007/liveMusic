@@ -18,11 +18,20 @@ import { AccountScreen } from "../screens/AccountScreen";
 import { JoinScreen, SignInScreen } from "../screens/AuthScreens";
 import { BandScreen } from "../screens/BandScreen";
 import { BillScreen } from "../screens/BillScreen";
+import { ClassifiedsScreen } from "../screens/ClassifiedsScreen";
+import { FeedScreen } from "../screens/FeedScreen";
+import { GigScreen } from "../screens/GigScreen";
+import { ListDetailScreen } from "../screens/ListDetailScreen";
 import { ListScreen } from "../screens/ListScreen";
+import { MessagesScreen } from "../screens/MessagesScreen";
+import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { PlanScreen } from "../screens/PlanScreen";
+import { PostGigScreen } from "../screens/PostGigScreen";
 import { PostScreen } from "../screens/PostScreen";
+import { ProfileScreen } from "../screens/ProfileScreen";
 import { SearchScreen } from "../screens/SearchScreen";
 import { ShowScreen } from "../screens/ShowScreen";
+import { ThreadScreen } from "../screens/ThreadScreen";
 import { colors, fonts, ink } from "../lib/theme";
 import type { RootStackParamList, TabParamList } from "./types";
 
@@ -158,6 +167,23 @@ export function Navigation() {
         <Stack.Screen name="Show" component={ShowScreen} options={{ title: "A show" }} />
         <Stack.Screen name="Band" component={BandScreen} options={{ title: "A band" }} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Look it up" }} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: "A person" }} />
+        <Stack.Screen name="ListDetail" component={ListDetailScreen} options={{ title: "A list" }} />
+        <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Following" }} />
+        <Stack.Screen
+          name="Notifications"
+          component={NotificationsScreen}
+          options={{ title: "Notifications" }}
+        />
+        <Stack.Screen
+          name="Classifieds"
+          component={ClassifiedsScreen}
+          options={{ title: "The classifieds" }}
+        />
+        <Stack.Screen name="Gig" component={GigScreen} options={{ title: "A gig" }} />
+        <Stack.Screen name="PostGig" component={PostGigScreen} options={{ title: "Post a gig" }} />
+        <Stack.Screen name="Messages" component={MessagesScreen} options={{ title: "Messages" }} />
+        <Stack.Screen name="Thread" component={ThreadScreen} options={{ title: "A conversation" }} />
         <Stack.Screen
           name="SignIn"
           component={SignInScreen}

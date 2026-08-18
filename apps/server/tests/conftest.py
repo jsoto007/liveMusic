@@ -17,6 +17,7 @@ from app import create_app  # noqa: E402
 from app.config import Config  # noqa: E402
 from app.extensions import db as _db  # noqa: E402
 from app.models import Artist, User, UserRole, Venue  # noqa: E402
+from app.utils.handles import handle_base, unique_handle  # noqa: E402
 from app.utils.passwords import hash_password  # noqa: E402
 from app.utils.slugs import unique_slug  # noqa: E402
 
@@ -94,11 +95,14 @@ def client(app):
 @pytest.fixture()
 def make_user(db):
     def _make(email="reader@example.com", password="correct-horse-battery",
-              role=UserRole.LISTENER, display_name="Reader"):
+              role=UserRole.LISTENER, display_name="Reader", handle=None):
         user = User(
             email=email.lower(),
             password_hash=hash_password(password),
             display_name=display_name,
+            handle=handle or unique_handle(
+                db.session, handle_base(email.split("@", 1)[0], fallback="reader")
+            ),
             role=role,
         )
         db.session.add(user)
@@ -141,6 +145,38 @@ def make_venue(db):
         db.session.add(venue)
         db.session.commit()
         return venue
+
+    return _make
+
+
+@pytest.fixture()
+def make_event(db, make_venue):
+    """Shared event factory — the social suites all need listings to hang
+    comments, reviews and lists off."""
+    from datetime import timedelta
+
+    from app.models import AgeRestriction, Event, EventStatus, Genre, utcnow
+
+    def _make(artist=None, venue=None, hours_ahead=3, status=EventStatus.PUBLISHED,
+              headline="Bloodroot Choir", genre=Genre.ROCK_PUNK, price_cents=1200,
+              created_by=None, **kwargs):
+        venue = venue or make_venue()
+        event = Event(
+            artist_id=artist.id if artist else None,
+            venue_id=venue.id,
+            created_by_user_id=created_by.id if created_by else None,
+            headline=headline,
+            genre=genre,
+            starts_at=utcnow() + timedelta(hours=hours_ahead),
+            price_cents=price_cents,
+            age_restriction=AgeRestriction.TWENTY_ONE_PLUS,
+            status=status,
+            published_at=utcnow() if status is EventStatus.PUBLISHED else None,
+            **kwargs,
+        )
+        db.session.add(event)
+        db.session.commit()
+        return event
 
     return _make
 

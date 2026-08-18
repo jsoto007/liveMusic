@@ -39,7 +39,9 @@ def migrated_app(tmp_path):
             connection.exec_driver_sql("DROP TABLE IF EXISTS alembic_version")
             for enum_name in (
                 "user_role", "event_status", "age_restriction", "genre",
-                "upload_purpose", "upload_status",
+                "upload_purpose", "upload_status", "notification_kind",
+                "report_reason", "report_status", "gig_status",
+                "gig_application_status", "image_review_status",
             ):
                 connection.exec_driver_sql(f"DROP TYPE IF EXISTS {enum_name} CASCADE")
 

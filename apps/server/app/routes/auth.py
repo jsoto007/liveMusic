@@ -14,6 +14,7 @@ from ..auth_helpers import load_current_user, require_auth, require_csrf
 from ..extensions import db, limiter
 from ..models import User, UserRole, utcnow
 from ..services.notifications import send_verification_email
+from ..utils.handles import handle_base, unique_handle
 from ..utils.passwords import (
     PasswordPolicyError,
     hash_password,
@@ -194,6 +195,10 @@ def register():
         email=email,
         password_hash=hash_password(raw_password),
         display_name=display_name,
+        # Auto-issued from the display name; the owner can change it later
+        # from their account page. Never taken from the registration body —
+        # one field fewer to squat on at the most-abused endpoint we have.
+        handle=unique_handle(db.session, handle_base(display_name)),
         home_city=home_city,
         role=UserRole.LISTENER,
     )

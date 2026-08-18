@@ -126,6 +126,26 @@ def require_csrf(func):
     return wrapper
 
 
+def require_admin(func):
+    """Editors only. A non-admin gets the same 404 a wrong id would.
+
+    403 would advertise that an admin surface exists at this path; these
+    routes are not linked anywhere client-side, so to everyone but an editor
+    they simply do not exist.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        user = load_current_user()
+        if user is None:
+            return _unauthorized()
+        if user.role is not UserRole.ADMIN:
+            return error("NOT_FOUND", "Not found.", status=404)
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
 def get_owned_artist(artist_id):
     """Return the artist if the caller may act as it, else ``None``.
 

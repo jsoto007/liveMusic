@@ -42,6 +42,17 @@
   letter-spacing: 0.01em;
   color: var(--color-text);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  /* A wordmark never breaks across lines; the kicker column yields instead. */
+  white-space: nowrap;
+}
+
+/* Em-sized so the mark rides the wordmark through its breakpoint resize. */
+.wordmark-mark {
+  width: 0.72em;
+  height: 0.72em;
 }
 
 .kicker {
@@ -1005,4 +1016,297 @@
   .actions .btn {
     min-width: 0;
   }
+}
+
+/* ── The social layer ─────────────────────────────────────────────────────
+   Faces, bylines, comments, stars, the inbox. Same grammar as the rest of
+   the paper: hairline rules carry the structure, color arrives as stroke. */
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  object-fit: cover;
+  border: 1px solid var(--color-neutral-300);
+  background: var(--color-surface);
+  /* The same archival grade the plates wear, quieter at this size. */
+  filter: sepia(0.18) saturate(0.85) contrast(1.04);
+}
+
+.avatar-lg {
+  width: 76px;
+  height: 76px;
+}
+
+.avatar-blank {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-heading);
+  font-size: 15px;
+  color: var(--color-neutral-500);
+  filter: none;
+}
+
+.avatar-lg.avatar-blank {
+  font-size: 30px;
+}
+
+.byline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.byline-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.byline-name {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.byline-sub {
+  font-size: 12.5px;
+  color: var(--color-neutral-600);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.byline:hover .byline-name {
+  text-decoration: underline;
+  text-decoration-color: var(--color-accent);
+  text-underline-offset: 3px;
+}
+
+.person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+/* Profile masthead: the face beside the name, counts set as figures. */
+.profile-head {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4) 0 var(--space-3);
+}
+
+.profile-counts {
+  display: flex;
+  gap: var(--space-4);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-700);
+  font-size: 13.5px;
+}
+
+.profile-counts b {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+/* Comments read as letters to the editor. */
+.comment {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.comment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.comment-body {
+  margin: var(--space-2) 0 0;
+  text-align: justify;
+  hyphens: auto;
+}
+
+.comment-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.btn-quiet {
+  font-size: 12.5px;
+  padding: 2px var(--space-2);
+  color: var(--color-neutral-600);
+}
+
+.mention {
+  color: var(--color-accent-700);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-accent-300);
+}
+
+.mention:hover {
+  border-bottom-color: var(--color-accent-700);
+}
+
+/* Stars are figures; they ink in the darker accent for body-size legibility. */
+.stars {
+  color: var(--color-accent-700);
+  letter-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stars-off {
+  color: var(--color-neutral-300);
+}
+
+.star-input {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.star-btn {
+  border: none;
+  background: none;
+  padding: 3px;
+  color: var(--color-accent-700);
+  cursor: pointer;
+}
+
+.star-btn:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The inbox. Unread lines carry an open ring in the margin — stroke, not fill. */
+.notif-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) 0;
+  border: none;
+  border-bottom: 1px solid var(--color-divider);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notif-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.unread-ring {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--color-accent);
+  border-radius: 50%;
+  justify-self: center;
+  align-self: center;
+}
+
+.notif-line {
+  min-width: 0;
+}
+
+.notif-excerpt {
+  display: block;
+  font-style: italic;
+  color: var(--color-neutral-600);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.notif-when {
+  font-size: 12px;
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.nav-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent-700);
+}
+
+/* Gig rows: the classifieds column. */
+.gig-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) 0;
+  border: none;
+  border-bottom: 1px solid var(--color-divider);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.gig-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.gig-title {
+  font-family: var(--font-heading);
+  font-size: 17px;
+}
+
+.gig-meta {
+  color: var(--color-neutral-600);
+  font-size: 13px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-line {
+  margin: 0 0 var(--space-1);
+}
+
+/* ── Correspondence ─────────────────────────────────────────────────────── */
+
+.letter {
+  padding: var(--space-2) 0;
+  max-width: 85%;
+}
+
+.letter-mine {
+  margin-left: auto;
+  text-align: right;
+  border-right: 2px solid var(--color-accent-300);
+  padding-right: var(--space-3);
+}
+
+.letter:not(.letter-mine) {
+  border-left: 2px solid var(--color-neutral-300);
+  padding-left: var(--space-3);
+}
+
+.letter-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.letter-when {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
 }

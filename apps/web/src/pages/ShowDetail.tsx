@@ -11,8 +11,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Ticket } from "lucide-react";
 import type { EventListing } from "@live-msc/shared";
 
+import { AddToListButton } from "../components/AddToListButton";
+import { CommentsSection } from "../components/CommentsSection";
 import { ImageUpload } from "../components/ImageUpload";
 import { Notice, Plate, Rule, SaveButton, SectionHead, Spinner } from "../components/Primitives";
+import { ReviewsSection } from "../components/ReviewsSection";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
@@ -210,6 +213,7 @@ export function ShowDetailPage() {
           </a>
         ) : null}
         <SaveButton saved={event.saved} onToggle={() => void setInterest({ saved: !event.saved })} />
+        <AddToListButton eventId={event.id} />
       </div>
 
       {event.artist ? (
@@ -217,6 +221,12 @@ export function ShowDetailPage() {
           More from {event.artist.name} →
         </Link>
       ) : null}
+
+      <Rule />
+      <ReviewsSection eventId={event.id} alreadyStarted={event.already_started} />
+
+      <Rule />
+      <CommentsSection eventId={event.id} />
     </article>
   );
 }
