@@ -12,6 +12,7 @@ import { Audio } from "expo-av";
 import { Pause, Play } from "lucide-react-native";
 import type { Artist, EventListing } from "@live-msc/shared";
 
+import { MessageButton } from "../components/MessageButton";
 import {
   Body,
   Button,
@@ -32,7 +33,7 @@ import type { RootStackParamList } from "../navigation/types";
 
 export function BandScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, "Band">>();
-  const { user } = useAuth();
+  const { user, artists } = useAuth();
   const handle = encodeURIComponent(params.handle);
 
   const { data, error, loading, reload } = useResource<{ artist: Artist }>(
@@ -114,6 +115,16 @@ export function BandScreen() {
           />
         ) : null}
       </View>
+
+      {/* Hire enquiries go to whoever runs the page — never to yourself. */}
+      {!artists.some((mine) => mine.id === artist.id) ? (
+        <MessageButton
+          anchor={{ artist_id: artist.id }}
+          recipientName={artist.name}
+          label="Message the band"
+          style={{ marginTop: space.s2 }}
+        />
+      ) : null}
 
       {artist.bio ? <Body style={{ marginTop: space.s4 }}>{artist.bio}</Body> : null}
 

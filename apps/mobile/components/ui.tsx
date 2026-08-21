@@ -223,6 +223,7 @@ export function Button({
   disabled = false,
   icon,
   style,
+  accessibilityLabel,
 }: {
   label: string;
   onPress: () => void;
@@ -232,6 +233,8 @@ export function Button({
   disabled?: boolean;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
+  /** For icon-only buttons, whose empty label reads as nothing. */
+  accessibilityLabel?: string;
 }) {
   const strokeColor =
     variant === "primary" || (variant === "toggle" && on)
@@ -249,6 +252,7 @@ export function Button({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled, selected: on }}
       style={({ pressed }) => [
         styles.button,

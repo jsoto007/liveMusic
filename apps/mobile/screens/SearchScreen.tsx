@@ -1,26 +1,34 @@
-/** 03 — Look it up. Search across acts, rooms and neighbourhoods. */
+/** 03 — Look it up. Acts, rooms, neighbourhoods — and the people reading. */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Search } from "lucide-react-native";
-import { GENRES, queryString, type EventListing, type Genre } from "@live-msc/shared";
+import {
+  GENRES,
+  queryString,
+  type EventListing,
+  type Genre,
+  type PeoplePage,
+} from "@live-msc/shared";
 
 import { ListingRow } from "../components/Listing";
-import { Chip, Empty, Notice, Screen, SectionHead, Spinner, inputStyle } from "../components/ui";
+import { FollowButton, UserRow } from "../components/UserRow";
+import {
+  Button,
+  Chip,
+  Empty,
+  Notice,
+  Screen,
+  SectionHead,
+  Spinner,
+  inputStyle,
+} from "../components/ui";
 import { api } from "../lib/auth";
 import { ink, radius, space } from "../lib/theme";
+import { useDebounced } from "../lib/useDebounced";
 import { useResource } from "../lib/useResource";
 import type { RootNavigation } from "../navigation/types";
-
-function useDebounced<T>(value: T, delayMs = 300): T {
-  const [settled, setSettled] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-  return settled;
-}
 
 export function SearchScreen() {
   const navigation = useNavigation<RootNavigation>();
@@ -36,12 +44,29 @@ export function SearchScreen() {
     [debounced, genres.join(",")],
   );
 
+  // People need at least two characters; under that the server refuses, so
+  // the page simply shows no people section rather than an error.
+  const people = useResource<PeoplePage>(
+    () =>
+      debounced.trim().length >= 2
+        ? api.get<PeoplePage>(
+            `/api/v1/users/search${queryString({ q: debounced.trim(), limit: 10 })}`,
+          )
+        : Promise.resolve({
+            ok: true as const,
+            data: { people: [], total: 0, has_more: false },
+            status: 200,
+          }),
+    [debounced],
+  );
+
   const toggleGenre = (genre: Genre) =>
     setGenres((current) =>
       current.includes(genre) ? current.filter((g) => g !== genre) : [...current, genre],
     );
 
   const count = data?.count ?? 0;
+  const foundPeople = people.data?.people ?? [];
 
   return (
     <Screen>
@@ -51,7 +76,7 @@ export function SearchScreen() {
           style={[inputStyle, styles.searchInput]}
           value={term}
           onChangeText={setTerm}
-          placeholder="Band, venue or genre"
+          placeholder="Band, venue, genre or person"
           placeholderTextColor={ink.faint}
           accessibilityLabel="Search listings"
           maxLength={80}
@@ -70,6 +95,12 @@ export function SearchScreen() {
           />
         ))}
       </View>
+
+      <Button
+        label="Browse the classifieds →"
+        variant="ghost"
+        onPress={() => navigation.navigate("Classifieds")}
+      />
 
       <SectionHead
         title="Results"
@@ -91,6 +122,27 @@ export function SearchScreen() {
       {!loading && data && count === 0 ? (
         <Empty>Nothing on the bill for that. Clear a filter, or post the show yourself.</Empty>
       ) : null}
+
+      {foundPeople.length > 0 ? (
+        <>
+          <SectionHead
+            title="People"
+            count={
+              people.data?.total === 1 ? "1 person" : `${people.data?.total ?? 0} people`
+            }
+          />
+          {foundPeople.map((person) => (
+            <UserRow
+              key={person.id}
+              person={person}
+              note={person.bio ?? null}
+              onPress={() => navigation.navigate("Profile", { handle: person.handle })}
+              trailing={<FollowButton person={person} />}
+            />
+          ))}
+        </>
+      ) : null}
+      {people.error ? <Notice tone="error">{people.error}</Notice> : null}
     </Screen>
   );
 }

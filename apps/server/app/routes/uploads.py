@@ -45,7 +45,12 @@ from ..services.r2_storage import (
     R2Storage,
 )
 from .response import error, ok
-from .serializers import serialize_artist, serialize_event, serialize_sample
+from .serializers import (
+    serialize_artist,
+    serialize_event,
+    serialize_sample,
+    serialize_user,
+)
 from .validators import get_json, parse_enum, parse_int, parse_string, parse_uuid
 
 uploads_bp = Blueprint("uploads", __name__)
@@ -54,12 +59,14 @@ _KEY_PREFIX = {
     UploadPurpose.ARTIST_AUDIO: "artists/audio",
     UploadPurpose.ARTIST_PHOTO: "artists/photo",
     UploadPurpose.EVENT_POSTER: "events/poster",
+    UploadPurpose.USER_AVATAR: "users/avatar",
 }
 
 _KIND = {
     UploadPurpose.ARTIST_AUDIO: "audio",
     UploadPurpose.ARTIST_PHOTO: "image",
     UploadPurpose.EVENT_POSTER: "image",
+    UploadPurpose.USER_AVATAR: "image",
 }
 
 
@@ -124,6 +131,14 @@ def _authorize_target(purpose: UploadPurpose, target_id):
         if artist is None:
             return None, not_found
         return artist, None
+
+    if purpose is UploadPurpose.USER_AVATAR:
+        # The only target you may aim an avatar at is yourself. No admin
+        # bypass either — an editor has no business wearing someone's face.
+        user = load_current_user()
+        if target_id != user.id:
+            return None, not_found
+        return user, None
 
     # EVENT_POSTER
     event = db.session.get(Event, target_id)
@@ -346,12 +361,22 @@ def complete_upload(upload_id):
         result, err = _attach_audio_sample(ticket, target, body, size_bytes)
     elif ticket.purpose is UploadPurpose.ARTIST_PHOTO:
         result, err = _attach_artist_photo(ticket, target)
+    elif ticket.purpose is UploadPurpose.USER_AVATAR:
+        result, err = _attach_user_avatar(ticket, target)
     else:
         result, err = _attach_event_poster(ticket, target)
 
     if err:
         db.session.rollback()
         return err
+
+    # Every image that lands is filed for the photo desk (post-moderation —
+    # see services/photo_desk.py). Same transaction as the attach: an image
+    # cannot go live unreviewed-and-unqueued.
+    if _KIND[ticket.purpose] == "image":
+        from ..services import photo_desk
+
+        photo_desk.queue_image(db.session, ticket)
 
     # The status was already claimed atomically at the top of this handler.
     db.session.commit()
@@ -419,6 +444,19 @@ def _attach_artist_photo(ticket: MediaUpload, artist):
     db.session.flush()
     _displace(previous_key, ticket.object_key)
     return {"artist": serialize_artist(locked, detail=True)}, None
+
+
+def _attach_user_avatar(ticket: MediaUpload, user):
+    # Same locked read-modify-write as artist photos, same reason: two
+    # concurrent completions must not orphan the loser's object.
+    from ..models import User
+
+    locked = db.session.get(User, user.id, with_for_update=True)
+    previous_key = locked.avatar_key
+    locked.avatar_key = ticket.object_key
+    db.session.flush()
+    _displace(previous_key, ticket.object_key)
+    return {"user": serialize_user(locked, include_email=True)}, None
 
 
 def _attach_event_poster(ticket: MediaUpload, event):

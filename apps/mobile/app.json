@@ -4,6 +4,7 @@
     "slug": "live-msc",
     "version": "0.1.0",
     "orientation": "portrait",
+    "icon": "./assets/icons/icon-light-1024.png",
     "scheme": "livemsc",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
@@ -23,13 +24,16 @@
     "android": {
       "package": "org.livemsc.app",
       "adaptiveIcon": {
-        "backgroundColor": "#f3f2f2"
+        "foregroundImage": "./assets/icons/adaptive-foreground-1024.png",
+        "backgroundColor": "#f3f2f2",
+        "monochromeImage": "./assets/icons/adaptive-foreground-1024.png"
       },
       "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "plugins": [
       "expo-secure-store",
       "expo-font",
+      "./plugins/withIosIconAppearances",
       [
         "expo-build-properties",
         {

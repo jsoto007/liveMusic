@@ -1,7 +1,8 @@
-/** Your list — what you are going to, and what you kept for later. */
+/** Your list — what you are going to, what you kept, and your named shelves. */
 
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { EventListing } from "@live-msc/shared";
+import type { EventList, EventListing } from "@live-msc/shared";
 
 import { ListingRow } from "../components/Listing";
 import { Empty, Notice, SectionHead, Spinner } from "../components/Primitives";
@@ -13,6 +14,96 @@ interface ListResponse {
   going: EventListing[];
   saved: EventListing[];
   summary: string;
+}
+
+function NamedLists() {
+  const { user } = useAuth();
+  const [name, setName] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const { data, error, loading, reload } = useResource<{ lists: EventList[] }>(
+    () => api.get<{ lists: EventList[] }>("/api/v1/me/lists"),
+    [user?.id ?? ""],
+  );
+
+  const create = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setBusy(true);
+    setFormError(null);
+    const result = await api.post("/api/v1/me/lists", {
+      name: trimmed,
+      is_public: isPublic,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
+    setName("");
+    setIsPublic(false);
+    reload();
+  };
+
+  return (
+    <>
+      <SectionHead title="Your lists" />
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      {loading && !data ? <Spinner /> : null}
+      {data && data.lists.length === 0 ? (
+        <Empty>
+          Shelves for anything — “Jazz to catch”, “October”. Public ones show
+          on your profile.
+        </Empty>
+      ) : null}
+      {data?.lists.map((list) => (
+        <Link
+          key={list.id}
+          className="person-row"
+          to={`/lists/${list.id}`}
+          style={{ textDecoration: "none", color: "inherit" }}
+        >
+          <span>
+            <span className="byline-name">{list.name}</span>
+            <span className="byline-sub">
+              {" "}
+              {list.is_public ? "public" : "private"} · {list.count_label ?? "0 shows"}
+            </span>
+          </span>
+        </Link>
+      ))}
+
+      <div className="actions" style={{ alignItems: "center" }}>
+        <input
+          className="input"
+          placeholder="Start a list"
+          maxLength={80}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          style={{ flex: 1 }}
+        />
+        <label className="radio" style={{ whiteSpace: "nowrap" }}>
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(event) => setIsPublic(event.target.checked)}
+          />
+          Public
+        </label>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          disabled={busy || !name.trim()}
+          onClick={() => void create()}
+        >
+          Create
+        </button>
+      </div>
+      {formError ? <Notice tone="error">{formError}</Notice> : null}
+    </>
+  );
 }
 
 export function MyListPage() {
@@ -61,6 +152,8 @@ export function MyListPage() {
           <ListingRow key={event.id} event={event} showNote={false} />
         ))
       )}
+
+      <NamedLists />
     </div>
   );
 }

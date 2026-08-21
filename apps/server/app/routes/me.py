@@ -10,10 +10,12 @@ from ..models import (
     Event,
     EventInterest,
     EventStatus,
+    User,
     UserRole,
     utcnow,
 )
 from ..services import events as event_service
+from ..utils.handles import is_valid_handle, normalize_handle
 from ..utils.slugs import unique_slug
 from .response import error, ok
 from .serializers import serialize_artist, serialize_event, serialize_user
@@ -64,6 +66,37 @@ def update_me():
         if err:
             return err
         user.home_city = value
+
+    if "bio" in body:
+        value, err = parse_string(body.get("bio"), "bio", required=False, max_length=500)
+        if err:
+            return err
+        user.bio = value
+
+    if "handle" in body:
+        raw, err = parse_string(body.get("handle"), "handle", max_length=30)
+        if err:
+            return err
+        candidate = normalize_handle(raw)
+        if not is_valid_handle(candidate):
+            return error(
+                "VALIDATION_ERROR",
+                "A handle is 3–30 characters of a–z, 0–9 and _, and a few names "
+                "are reserved.",
+                {"handle": "invalid"},
+            )
+        if candidate != user.handle:
+            taken = (
+                db.session.query(User.id)
+                .filter(User.handle == candidate, User.id != user.id)
+                .first()
+            )
+            if taken is not None:
+                return error(
+                    "HANDLE_TAKEN", "That handle is already in use.",
+                    {"handle": "taken"}, status=409,
+                )
+            user.handle = candidate
 
     # `role`, `email` and `is_active` are deliberately absent: a client cannot
     # promote itself to admin or take over an address by PATCHing its profile.

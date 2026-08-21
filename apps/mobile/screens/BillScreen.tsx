@@ -2,8 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { Bookmark, Search } from "lucide-react-native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
+import { Bell, Bookmark, Mail, Search, Users } from "lucide-react-native";
 import {
   DAY_FILTERS,
   queryString,
@@ -13,6 +13,7 @@ import {
 } from "@live-msc/shared";
 
 import { ListingRow } from "../components/Listing";
+import { LogoMark } from "../components/LogoMark";
 import {
   Body,
   Button,
@@ -36,12 +37,34 @@ import type { RootNavigation } from "../navigation/types";
 export function BillScreen() {
   const navigation = useNavigation<RootNavigation>();
   const { user } = useAuth();
+  const focused = useIsFocused();
   const [day, setDay] = useState<"all" | DayBucket>("all");
 
   const { data, error, loading, reload } = useResource<BillPage>(
     () => api.get<BillPage>(`/api/v1/events${queryString({ day })}`),
     [day],
   );
+
+  // The bell's figure. Re-checked each time the tab comes back into view —
+  // cheap, and it keeps the count honest after reading the inbox.
+  const unread = useResource<{ unread_count: number }>(
+    () =>
+      user && focused
+        ? api.get<{ unread_count: number }>("/api/v1/me/notifications/unread-count")
+        : Promise.resolve({ ok: true as const, data: { unread_count: 0 }, status: 200 }),
+    [user?.id ?? "", focused],
+  );
+  const unreadCount = unread.data?.unread_count ?? 0;
+
+  // The mailbox's figure, on the same focus-driven cadence as the bell.
+  const unreadMail = useResource<{ unread_count: number }>(
+    () =>
+      user && focused
+        ? api.get<{ unread_count: number }>("/api/v1/me/conversations/unread-count")
+        : Promise.resolve({ ok: true as const, data: { unread_count: 0 }, status: 200 }),
+    [user?.id ?? "", focused],
+  );
+  const unreadMailCount = unreadMail.data?.unread_count ?? 0;
 
   const featured = data?.events[0] ?? null;
 
@@ -77,22 +100,71 @@ export function BillScreen() {
           colour rather than a chrome bar. */}
       <View style={styles.masthead}>
         <View style={{ flex: 1 }}>
-          <Heading size="h1" display style={{ fontSize: 30, lineHeight: 32 }}>
-            Live Msc
-          </Heading>
+          <View style={styles.wordmark}>
+            <LogoMark size={22} />
+            <Heading size="h1" display style={{ fontSize: 30, lineHeight: 32 }}>
+              Live Msc
+            </Heading>
+          </View>
           <Kicker style={{ marginTop: 6 }}>
             {user?.home_city ? `${user.home_city}  ·  ` : ""}
             {todayLine()}
           </Kicker>
         </View>
-        <Pressable
-          onPress={() => navigation.navigate("Search")}
-          accessibilityRole="button"
-          accessibilityLabel="Search listings"
-          hitSlop={12}
-        >
-          <Search size={20} color={colors.accent} strokeWidth={1.5} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => navigation.navigate("Feed")}
+            accessibilityRole="button"
+            accessibilityLabel="Your Following feed"
+            hitSlop={10}
+          >
+            <Users size={20} color={colors.accent} strokeWidth={1.5} />
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate("Messages")}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadMailCount > 0 ? `Messages, ${unreadMailCount} unread` : "Messages"
+            }
+            hitSlop={10}
+          >
+            <View>
+              <Mail size={20} color={colors.accent} strokeWidth={1.5} />
+              {unreadMailCount > 0 ? (
+                <Text style={styles.bellBadge}>
+                  {unreadMailCount > 9 ? "9+" : unreadMailCount}
+                </Text>
+              ) : null}
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate("Notifications")}
+            accessibilityRole="button"
+            accessibilityLabel={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : "Notifications"
+            }
+            hitSlop={10}
+          >
+            <View>
+              <Bell size={20} color={colors.accent} strokeWidth={1.5} />
+              {unreadCount > 0 ? (
+                <Text style={styles.bellBadge}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              ) : null}
+            </View>
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate("Search")}
+            accessibilityRole="button"
+            accessibilityLabel="Search listings"
+            hitSlop={10}
+          >
+            <Search size={20} color={colors.accent} strokeWidth={1.5} />
+          </Pressable>
+        </View>
       </View>
       <Rule style={{ marginTop: space.s3 }} />
 
@@ -214,6 +286,26 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     justifyContent: "space-between",
     gap: space.s3,
+  },
+  wordmark: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.s2,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.s4,
+    paddingBottom: 2,
+  },
+  bellBadge: {
+    position: "absolute",
+    top: -7,
+    right: -9,
+    fontFamily: fonts.heading,
+    fontSize: 10,
+    color: colors.accent,
+    ...tabular,
   },
   filters: { flexDirection: "row", flexWrap: "wrap", paddingVertical: space.s3 },
   featuredHead: {

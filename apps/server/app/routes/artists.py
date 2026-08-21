@@ -47,6 +47,66 @@ def _follower_count(artist_id) -> int:
     )
 
 
+@artists_bp.get("/artists/for-hire")
+@limiter.limit("120 per minute")
+def for_hire_directory():
+    """The hire desk: bands that flagged themselves available.
+
+    Registered above the ``/artists/<handle>`` catch-all so the literal path
+    wins the match.
+    """
+    limit, offset, err = parse_pagination(request.args, default_limit=30, max_limit=100)
+    if err:
+        return err
+
+    base = db.session.query(Artist).filter(Artist.available_for_hire.is_(True))
+
+    city = (request.args.get("city") or "").strip()
+    if city:
+        base = base.filter(
+            db.func.lower(Artist.city).like(
+                f"%{event_service._escape_like(city.lower())}%", escape="\\"
+            )
+        )
+
+    query = (request.args.get("q") or "").strip()
+    if query:
+        needle = f"%{event_service._escape_like(query.lower())}%"
+        base = base.filter(
+            db.or_(
+                db.func.lower(Artist.name).like(needle, escape="\\"),
+                db.func.lower(db.func.coalesce(Artist.one_liner, "")).like(
+                    needle, escape="\\"
+                ),
+                db.func.lower(db.func.coalesce(Artist.sounds_like, "")).like(
+                    needle, escape="\\"
+                ),
+                # style_tags is a JSON list; matching its serialized text is a
+                # LIKE-level filter, not a structured query — good enough for
+                # a directory search box.
+                db.func.lower(db.func.cast(Artist.style_tags, db.String)).like(
+                    needle, escape="\\"
+                ),
+            )
+        )
+
+    total = int(base.with_entities(db.func.count(Artist.id)).scalar() or 0)
+    rows = (
+        base.order_by(Artist.verified_at.isnot(None).desc(), Artist.name.asc())
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
+
+    return ok(
+        {
+            "artists": [serialize_artist(artist) for artist in rows],
+            "total": total,
+            "has_more": offset + limit < total,
+        }
+    )
+
+
 @artists_bp.get("/artists/<handle>")
 def get_artist(handle):
     artist = _lookup_artist(handle)

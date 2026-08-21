@@ -7,6 +7,15 @@ export type RootStackParamList = {
   Search: undefined;
   SignIn: undefined;
   Join: undefined;
+  Profile: { handle: string };
+  ListDetail: { listId: string };
+  Feed: undefined;
+  Notifications: undefined;
+  Classifieds: undefined;
+  Gig: { gigId: string };
+  PostGig: undefined;
+  Messages: undefined;
+  Thread: { conversationId: string };
 };
 
 export type TabParamList = {

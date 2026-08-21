@@ -11,6 +11,7 @@ import { useParams } from "react-router-dom";
 import { Pause, Play } from "lucide-react";
 import type { Artist, EventListing } from "@live-msc/shared";
 
+import { MessageButton } from "../components/MessageButton";
 import { Empty, Notice, Plate, Rule, SectionHead, Spinner, Tag } from "../components/Primitives";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
@@ -18,7 +19,7 @@ import { api } from "../lib/api";
 
 export function BandPage() {
   const { handle = "" } = useParams();
-  const { user } = useAuth();
+  const { user, artists: myArtists } = useAuth();
 
   const { data, error, loading, reload } = useResource<{ artist: Artist }>(
     () => api.get<{ artist: Artist }>(`/api/v1/artists/${encodeURIComponent(handle)}`),
@@ -81,6 +82,14 @@ export function BandPage() {
         >
           {artist.is_following ? "Following" : "Follow"}
         </button>
+        {/* Reaches the band's current owner; your own bands get no button. */}
+        {!myArtists.some((mine) => mine.id === artist.id) ? (
+          <MessageButton
+            anchor={{ artist_id: artist.id }}
+            recipientName={artist.name}
+            label="Message the band"
+          />
+        ) : null}
         {samples[0]?.stream_url ? (
           <button
             type="button"

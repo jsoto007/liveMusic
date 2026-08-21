@@ -45,6 +45,7 @@ from app.models import (  # noqa: E402
     utcnow,
 )
 from app.services.r2_storage import R2Storage, build_client  # noqa: E402
+from app.utils.handles import unique_handle  # noqa: E402
 from app.utils.passwords import hash_password  # noqa: E402
 from app.utils.slugs import unique_slug  # noqa: E402
 
@@ -183,6 +184,7 @@ def _curator(session) -> User:
             email=CURATOR_EMAIL,
             password_hash=hash_password(uuid.uuid4().hex + "Aa1!" * 4),
             display_name="Live Msc Editorial",
+            handle=unique_handle(session, "editorial_desk"),
             home_city=CITY,
             role=UserRole.ADMIN,
             email_verified_at=utcnow(),

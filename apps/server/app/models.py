@@ -155,12 +155,63 @@ class UploadPurpose(str, enum.Enum):
     ARTIST_AUDIO = "artist_audio"
     ARTIST_PHOTO = "artist_photo"
     EVENT_POSTER = "event_poster"
+    USER_AVATAR = "user_avatar"
 
 
 class UploadStatus(str, enum.Enum):
     PENDING = "pending"
     COMPLETED = "completed"
     ABANDONED = "abandoned"
+
+
+class NotificationKind(str, enum.Enum):
+    """Everything the in-app inbox can hold.
+
+    Gig decisions are two kinds rather than one "updated" kind on purpose: the
+    notification is a snapshot ("you're in"), and reading the *current*
+    application status at serialization time would silently rewrite history if
+    the poster later changed their mind.
+    """
+
+    NEW_FOLLOWER = "new_follower"
+    EVENT_COMMENT = "event_comment"
+    COMMENT_LIKE = "comment_like"
+    MENTION = "mention"
+    EVENT_REVIEW = "event_review"
+    GIG_APPLICATION = "gig_application"
+    GIG_ACCEPTED = "gig_accepted"
+    GIG_DECLINED = "gig_declined"
+    IMAGE_REMOVED = "image_removed"
+
+
+class ReportReason(str, enum.Enum):
+    SPAM = "spam"
+    HARASSMENT = "harassment"
+    INAPPROPRIATE = "inappropriate"
+    OTHER = "other"
+
+
+class ReportStatus(str, enum.Enum):
+    OPEN = "open"
+    RESOLVED = "resolved"
+    DISMISSED = "dismissed"
+
+
+class GigStatus(str, enum.Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class GigApplicationStatus(str, enum.Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+
+
+class ImageReviewStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REMOVED = "removed"
 
 
 # ── Users and sessions ─────────────────────────────────────────────────────
@@ -175,6 +226,14 @@ class User(db.Model):
     email = sa.Column(sa.String(255), nullable=False, unique=True, index=True)
     password_hash = sa.Column(sa.String(255), nullable=False)
     display_name = sa.Column(sa.String(80), nullable=False)
+    # The public @name a profile lives at. Stored lowercase (see
+    # utils/handles.py for the alphabet); the unique index is on the stored
+    # value so casing can never mint two accounts one @name apart.
+    handle = sa.Column(sa.String(30), nullable=False, unique=True, index=True)
+    bio = sa.Column(sa.Text, nullable=True)
+    # R2 key, never a URL — the display URL is minted per request exactly as
+    # for posters and samples.
+    avatar_key = sa.Column(sa.String(400), nullable=True)
     role = sa.Column(
         pg_enum(UserRole, "user_role"), nullable=False, default=UserRole.LISTENER
     )
@@ -581,6 +640,514 @@ class EventInterest(db.Model):
     event = relationship("Event", back_populates="interests")
 
     __table_args__ = (sa.Index("ix_event_interests_event", "event_id"),)
+
+
+# ── Social graph ───────────────────────────────────────────────────────────
+
+
+class UserFollow(db.Model):
+    """Reader follows reader. Instant — profiles are public, so there is no
+    approval step; privacy lives on the list, not the account."""
+
+    __tablename__ = "user_follows"
+
+    follower_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    followee_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        sa.Index("ix_user_follows_followee", "followee_id"),
+        sa.CheckConstraint("follower_id <> followee_id", name="ck_user_follows_not_self"),
+    )
+
+
+class UserBlock(db.Model):
+    """Blocking removes the follow edges both ways and keeps them removed.
+
+    What it cannot do is hide a public profile — that is the privacy model,
+    not an oversight. Its effects are: no follows in either direction, the
+    blocked user cannot comment on the blocker's events, and neither side's
+    comments/reviews appear in the other's reads.
+    """
+
+    __tablename__ = "user_blocks"
+
+    blocker_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    blocked_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        sa.Index("ix_user_blocks_blocked", "blocked_id"),
+        sa.CheckConstraint("blocker_id <> blocked_id", name="ck_user_blocks_not_self"),
+    )
+
+
+class EventList(db.Model):
+    """A named shelf of shows — "Jazz to catch", "October".
+
+    Distinct from :class:`EventInterest`: saved/going are one-tap marks wired
+    into reminders; lists are curated and shareable. ``is_public`` is the whole
+    privacy model — a private list is visible to its owner and nobody else.
+    """
+
+    __tablename__ = "event_lists"
+
+    id = _uuid_pk()
+    owner_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    name = sa.Column(sa.String(80), nullable=False)
+    description = sa.Column(sa.String(300), nullable=True)
+    is_public = sa.Column(sa.Boolean, nullable=False, default=False)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = sa.Column(
+        sa.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    owner = relationship("User")
+    items = relationship(
+        "EventListItem", back_populates="event_list", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        # Two lists named "Jazz" on one shelf is a mistake, not a feature.
+        sa.UniqueConstraint("owner_user_id", "name", name="uq_event_lists_owner_name"),
+    )
+
+
+class EventListItem(db.Model):
+    __tablename__ = "event_list_items"
+
+    list_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("event_lists.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    event_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("events.id", ondelete="CASCADE"), primary_key=True
+    )
+    note = sa.Column(sa.String(200), nullable=True)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    event_list = relationship("EventList", back_populates="items")
+    event = relationship("Event")
+
+    __table_args__ = (
+        sa.Index("ix_event_list_items_event", "event_id"),
+        # The feed reads "recent additions to public lists" — newest first,
+        # per list.
+        sa.Index("ix_event_list_items_created", "list_id", "created_at"),
+    )
+
+
+class Comment(db.Model):
+    """A flat comment under a listing — letters to the editor, newest first."""
+
+    __tablename__ = "comments"
+
+    id = _uuid_pk()
+    event_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("events.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    author_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    body = sa.Column(sa.Text, nullable=False)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = sa.Column(
+        sa.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    author = relationship("User")
+    # ORM-level cascades matter here, not just the FK: author/admin deletes go
+    # through the ORM, and SQLite in tests does not enforce FKs.
+    # No passive_deletes: the test backend (SQLite) does not enforce FKs, so
+    # the ORM must do the cascading itself on author/editor deletes.
+    likes = relationship("CommentLike", cascade="all, delete-orphan")
+    notifications = relationship(
+        "Notification", back_populates="comment", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (sa.Index("ix_comments_event_created", "event_id", "created_at"),)
+
+
+class CommentLike(db.Model):
+    __tablename__ = "comment_likes"
+
+    comment_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("comments.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (sa.Index("ix_comment_likes_user", "user_id"),)
+
+
+class Review(db.Model):
+    """One reader's verdict on one show — stars and, optionally, words.
+
+    Reviews open when the show starts, never before: a review of a show that
+    has not happened is an opinion about a poster.
+    """
+
+    __tablename__ = "reviews"
+
+    id = _uuid_pk()
+    event_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("events.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    author_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    rating = sa.Column(sa.SmallInteger, nullable=False)
+    body = sa.Column(sa.Text, nullable=True)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = sa.Column(
+        sa.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    author = relationship("User")
+    event = relationship("Event")
+
+    __table_args__ = (
+        sa.UniqueConstraint("event_id", "author_user_id", name="uq_reviews_event_author"),
+        sa.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_reviews_rating_range"),
+    )
+
+
+# ── Gigs (the classifieds board) ───────────────────────────────────────────
+
+
+class Gig(db.Model):
+    """A call for musicians: "wanted — jazz trio, Friday, pays $300"."""
+
+    __tablename__ = "gigs"
+
+    id = _uuid_pk()
+    posted_by_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    title = sa.Column(sa.String(160), nullable=False)
+    description = sa.Column(sa.Text, nullable=False)
+    city = sa.Column(sa.String(120), nullable=False, index=True)
+    neighborhood = sa.Column(sa.String(120), nullable=True)
+    venue_name = sa.Column(sa.String(160), nullable=True)
+    # Nullable: "house band wanted, ongoing" has no single date. When present,
+    # the wall-clock reading needs the gig's own zone, same as venues.
+    starts_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    timezone_name = sa.Column(sa.String(64), nullable=False, default="UTC")
+    # Integer cents, NULL = "pay not stated" — same convention as door prices.
+    pay_cents = sa.Column(sa.Integer, nullable=True)
+    pay_note = sa.Column(sa.String(140), nullable=True)
+    genre = sa.Column(pg_enum(Genre, "genre"), nullable=True)
+    status = sa.Column(
+        pg_enum(GigStatus, "gig_status"), nullable=False, default=GigStatus.OPEN, index=True
+    )
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = sa.Column(
+        sa.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    posted_by = relationship("User")
+    applications = relationship(
+        "GigApplication", back_populates="gig", cascade="all, delete-orphan"
+    )
+    notifications = relationship(
+        "Notification", back_populates="gig", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        sa.Index("ix_gigs_status_created", "status", "created_at"),
+        sa.CheckConstraint(
+            "pay_cents IS NULL OR pay_cents >= 0", name="ck_gigs_pay_non_negative"
+        ),
+    )
+
+
+class GigApplication(db.Model):
+    """One band's hand up for one gig.
+
+    Authorization is always re-derived from *current* artist ownership;
+    ``applicant_user_id`` is the audit line of who raised the hand, kept for
+    the day a band account changes hands mid-application.
+    """
+
+    __tablename__ = "gig_applications"
+
+    id = _uuid_pk()
+    gig_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("gigs.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    artist_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("artists.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    applicant_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    message = sa.Column(sa.String(1000), nullable=True)
+    status = sa.Column(
+        pg_enum(GigApplicationStatus, "gig_application_status"),
+        nullable=False,
+        default=GigApplicationStatus.PENDING,
+    )
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at = sa.Column(
+        sa.DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    gig = relationship("Gig", back_populates="applications")
+    artist = relationship("Artist")
+
+    __table_args__ = (
+        # One application per band per gig — editing the message is an update,
+        # not a second application.
+        sa.UniqueConstraint("gig_id", "artist_id", name="uq_gig_applications_gig_artist"),
+    )
+
+
+# ── Messages (the hire desk's correspondence) ──────────────────────────────
+
+
+class Conversation(db.Model):
+    """One thread per pair of readers.
+
+    The pair is stored ordered (``a_user_id < b_user_id``, compared as
+    UUIDs) so the unique constraint holds regardless of who wrote first.
+    ``artist_id``/``gig_id`` remember what opened the thread — the subject
+    line of a hire enquiry — and outlive the subject via SET NULL: the
+    correspondence is the parties', not the listing's.
+    """
+
+    __tablename__ = "conversations"
+
+    id = _uuid_pk()
+    a_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    b_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    artist_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("artists.id", ondelete="SET NULL"), nullable=True
+    )
+    gig_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("gigs.id", ondelete="SET NULL"), nullable=True
+    )
+    # Read markers, one per side. Two columns rather than a participants
+    # table because a thread is exactly two people — the schema says so.
+    a_last_read_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    b_last_read_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    last_message_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    a_user = relationship("User", foreign_keys=[a_user_id])
+    b_user = relationship("User", foreign_keys=[b_user_id])
+    artist = relationship("Artist")
+    gig = relationship("Gig")
+    messages = relationship(
+        "Message", back_populates="conversation", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        sa.UniqueConstraint("a_user_id", "b_user_id", name="uq_conversations_pair"),
+        sa.CheckConstraint("a_user_id < b_user_id", name="ck_conversations_ordered_pair"),
+        sa.Index("ix_conversations_a_recent", "a_user_id", "last_message_at"),
+        sa.Index("ix_conversations_b_recent", "b_user_id", "last_message_at"),
+    )
+
+    def involves(self, user_id) -> bool:
+        return user_id in (self.a_user_id, self.b_user_id)
+
+    def other_user(self, user_id):
+        return self.b_user if user_id == self.a_user_id else self.a_user
+
+    def my_last_read(self, user_id):
+        return self.a_last_read_at if user_id == self.a_user_id else self.b_last_read_at
+
+
+class Message(db.Model):
+    __tablename__ = "messages"
+
+    id = _uuid_pk()
+    conversation_id = sa.Column(
+        sa.Uuid(as_uuid=True),
+        sa.ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sender_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    body = sa.Column(sa.Text, nullable=False)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User")
+
+    __table_args__ = (
+        sa.Index("ix_messages_conversation_created", "conversation_id", "created_at"),
+    )
+
+
+# ── Image review (the photo desk) ──────────────────────────────────────────
+
+
+class ImageReview(db.Model):
+    """One row per image that landed, for the editors to look at.
+
+    Post-moderation: the photo goes live on completion and this row queues
+    it for review. ``object_key`` is a snapshot — if removal happens after
+    the owner already replaced the photo, the stale key is simply deleted
+    from storage and the owning row is left alone (it no longer points at
+    the reviewed object).
+    """
+
+    __tablename__ = "image_reviews"
+
+    id = _uuid_pk()
+    uploader_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    purpose = sa.Column(pg_enum(UploadPurpose, "upload_purpose"), nullable=False)
+    target_id = sa.Column(sa.Uuid(as_uuid=True), nullable=True)
+    object_key = sa.Column(sa.String(400), nullable=False)
+    status = sa.Column(
+        pg_enum(ImageReviewStatus, "image_review_status"),
+        nullable=False,
+        default=ImageReviewStatus.PENDING,
+        index=True,
+    )
+    reviewed_by_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reviewed_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        sa.Index("ix_image_reviews_status_created", "status", "created_at"),
+    )
+
+
+# ── In-app notifications and reports ───────────────────────────────────────
+
+
+class Notification(db.Model):
+    """One line in a reader's inbox.
+
+    Concrete FK columns rather than a polymorphic (type, id) pair: every FK
+    cascades, so deleting a comment or a gig takes its notifications with it
+    and the inbox can never point at something that is gone.
+    """
+
+    __tablename__ = "notifications"
+
+    id = _uuid_pk()
+    # The recipient.
+    user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    kind = sa.Column(pg_enum(NotificationKind, "notification_kind"), nullable=False)
+    # Who did the thing. Nullable only because CASCADE would otherwise delete
+    # the row anyway — every kind we mint today has an actor.
+    actor_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
+    )
+    event_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("events.id", ondelete="CASCADE"), nullable=True
+    )
+    comment_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("comments.id", ondelete="CASCADE"), nullable=True
+    )
+    gig_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("gigs.id", ondelete="CASCADE"), nullable=True
+    )
+    read_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    actor = relationship("User", foreign_keys=[actor_user_id])
+    event = relationship("Event")
+    comment = relationship("Comment", back_populates="notifications")
+    gig = relationship("Gig", back_populates="notifications")
+
+    __table_args__ = (
+        sa.Index("ix_notifications_user_created", "user_id", "created_at"),
+        sa.Index("ix_notifications_user_unread", "user_id", "read_at"),
+    )
+
+
+class ContentReport(db.Model):
+    """A reader flagging something for the editors.
+
+    Exactly one subject column is set — the check constraint holds the shape,
+    so a report can never be ambiguous about what it points at.
+    """
+
+    __tablename__ = "content_reports"
+
+    id = _uuid_pk()
+    reporter_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False,
+        index=True,
+    )
+    # SET NULL, not CASCADE: deleting reported content must not also shred
+    # the report — the row is the audit line that moderation happened (or was
+    # pending). A report whose every subject is NULL reads as "content
+    # already removed".
+    comment_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("comments.id", ondelete="SET NULL"), nullable=True
+    )
+    review_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("reviews.id", ondelete="SET NULL"), nullable=True
+    )
+    reported_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    reason = sa.Column(pg_enum(ReportReason, "report_reason"), nullable=False)
+    detail = sa.Column(sa.String(500), nullable=True)
+    status = sa.Column(
+        pg_enum(ReportStatus, "report_status"),
+        nullable=False,
+        default=ReportStatus.OPEN,
+        index=True,
+    )
+    resolved_by_user_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    resolved_at = sa.Column(sa.DateTime(timezone=True), nullable=True)
+    created_at = sa.Column(sa.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    __table_args__ = (
+        sa.Index("ix_content_reports_status_created", "status", "created_at"),
+        # At most one subject. Creation requires exactly one (route-enforced);
+        # the schema allows zero because deleting the subject nulls the
+        # pointer rather than destroying the report.
+        sa.CheckConstraint(
+            "(CASE WHEN comment_id IS NOT NULL THEN 1 ELSE 0 END"
+            " + CASE WHEN review_id IS NOT NULL THEN 1 ELSE 0 END"
+            " + CASE WHEN reported_user_id IS NOT NULL THEN 1 ELSE 0 END) <= 1",
+            name="ck_content_reports_one_subject",
+        ),
+    )
 
 
 # ── Media uploads ──────────────────────────────────────────────────────────
