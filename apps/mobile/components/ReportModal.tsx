@@ -1,6 +1,6 @@
 /**
- * The report desk. One subject per report — a comment, a review, or a
- * person — with a reason and an optional line for the editors.
+ * The report desk. One subject per report — a listing, a comment, a review,
+ * or a person — with a reason and an optional line for the editors.
  */
 
 import { useState } from "react";
@@ -23,7 +23,8 @@ import { Body, Button, Chip, Notice, inputStyle } from "./ui";
 export type ReportSubject =
   | { comment_id: string }
   | { review_id: string }
-  | { reported_user_id: string };
+  | { reported_user_id: string }
+  | { event_id: string };
 
 export function ReportModal({
   visible,

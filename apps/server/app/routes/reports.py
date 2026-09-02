@@ -6,7 +6,7 @@ reported comment/review. There is no "ban user" button here; account action
 is a bigger decision than a queue click.
 """
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from sqlalchemy.orm import joinedload
 
 from ..auth_helpers import load_current_user, require_admin, require_auth
@@ -14,6 +14,8 @@ from ..extensions import db, limiter
 from ..models import (
     Comment,
     ContentReport,
+    Event,
+    EventStatus,
     ImageReview,
     ImageReviewStatus,
     ReportReason,
@@ -23,6 +25,7 @@ from ..models import (
     utcnow,
 )
 from ..services import photo_desk
+from ..services.r2_storage import R2Storage
 from ..services.photo_desk import ReviewRefused
 from .response import error, ok
 from .serializers import serialize_image_review, serialize_report
@@ -50,16 +53,18 @@ def create_report():
         return err
 
     subjects = [
-        key for key in ("comment_id", "review_id", "reported_user_id") if body.get(key)
+        key
+        for key in ("comment_id", "review_id", "reported_user_id", "event_id")
+        if body.get(key)
     ]
     if len(subjects) != 1:
         return error(
             "VALIDATION_ERROR",
-            "Report exactly one thing: a comment, a review, or a person.",
+            "Report exactly one thing: a listing, a comment, a review, or a person.",
             {"subject": "exactly_one"},
         )
 
-    comment = review = reported_user = None
+    comment = review = reported_user = event = None
     not_found = error("NOT_FOUND", "That could not be found.", status=404)
 
     if subjects[0] == "comment_id":
@@ -86,6 +91,21 @@ def create_report():
                 "VALIDATION_ERROR", "You wrote that — delete it instead.",
                 {"subject": "own_content"},
             )
+    elif subjects[0] == "event_id":
+        event_id, err = parse_uuid(body.get("event_id"), "event_id")
+        if err:
+            return err
+        event = db.session.get(Event, event_id)
+        # A draft is not published, so it is not something a reader could have
+        # seen — answering 404 keeps the report route from confirming that an
+        # unpublished listing exists.
+        if event is None or event.status is EventStatus.DRAFT:
+            return not_found
+        if event.created_by_user_id == reporter.id:
+            return error(
+                "VALIDATION_ERROR", "You posted that — cancel it instead.",
+                {"subject": "own_content"},
+            )
     else:
         user_id, err = parse_uuid(body.get("reported_user_id"), "reported_user_id")
         if err:
@@ -104,6 +124,7 @@ def create_report():
         comment_id=comment.id if comment else None,
         review_id=review.id if review else None,
         reported_user_id=reported_user.id if reported_user else None,
+        event_id=event.id if event else None,
         reason=reason,
         detail=detail,
     )
@@ -146,6 +167,7 @@ def list_reports():
     # Batch the subjects — one query per table, not one per row.
     comment_ids = [r.comment_id for r in rows if r.comment_id]
     review_ids = [r.review_id for r in rows if r.review_id]
+    event_ids = [r.event_id for r in rows if r.event_id]
     user_ids = {r.reporter_user_id for r in rows} | {
         r.reported_user_id for r in rows if r.reported_user_id
     }
@@ -164,6 +186,13 @@ def list_reports():
         .filter(Review.id.in_(review_ids))
         .all()
     } if review_ids else {}
+    events = {
+        e.id: e
+        for e in db.session.query(Event)
+        .options(joinedload(Event.venue))
+        .filter(Event.id.in_(event_ids))
+        .all()
+    } if event_ids else {}
     users = {
         u.id: u for u in db.session.query(User).filter(User.id.in_(user_ids)).all()
     }
@@ -176,6 +205,7 @@ def list_reports():
                     comment=comments.get(row.comment_id),
                     review=reviews.get(row.review_id),
                     reported_user=users.get(row.reported_user_id),
+                    event=events.get(row.event_id),
                     reporter=users.get(row.reporter_user_id),
                 )
                 for row in rows
@@ -207,6 +237,8 @@ def resolve_report(report_id):
             {"action": "invalid"},
         )
 
+    removed_object_key: str | None = None
+
     if action == "remove_content":
         if report.reported_user_id is not None:
             return error(
@@ -228,6 +260,20 @@ def resolve_report(report_id):
             report.review_id = None
             if review is not None:
                 db.session.delete(review)
+        elif report.event_id is not None:
+            # A listing is taken off the bill, not deleted: readers have it on
+            # their lists, and the cancelled state is what tells them it is
+            # off. The poster is the part that gets destroyed, because an
+            # objectionable image is the usual reason a listing is reported.
+            event = db.session.get(Event, report.event_id)
+            if event is not None:
+                event.status = EventStatus.CANCELLED
+                event.cancelled_at = utcnow()
+                if event.poster_key:
+                    poster_key = event.poster_key
+                    event.poster_key = None
+                    event.poster_credit = None
+                    removed_object_key = poster_key
         report.status = ReportStatus.RESOLVED
     else:
         report.status = ReportStatus.DISMISSED
@@ -235,6 +281,19 @@ def resolve_report(report_id):
     report.resolved_by_user_id = editor.id
     report.resolved_at = utcnow()
     db.session.commit()
+
+    # After the commit, and never able to fail the call: the moderation
+    # decision is already recorded, and a storage hiccup must not make the
+    # editor think the report is still open and act on it twice.
+    if removed_object_key:
+        try:
+            R2Storage.delete_object(removed_object_key)
+        except Exception:  # noqa: BLE001 - purge is best-effort by design
+            current_app.logger.exception(
+                "Listing poster removed from the record but not from storage: %s",
+                removed_object_key,
+            )
+
     return ok({"report_id": str(report.id), "status": report.status.value})
 
 

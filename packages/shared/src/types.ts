@@ -518,7 +518,7 @@ export interface ImageReview {
 
 export interface AdminReport {
   id: string;
-  subject_type: "comment" | "review" | "user" | "removed";
+  subject_type: "comment" | "review" | "user" | "event" | "removed";
   reason: ReportReason;
   detail: string | null;
   status: "open" | "resolved" | "dismissed";
@@ -528,6 +528,7 @@ export interface AdminReport {
   comment?: Comment;
   review?: Review;
   reported_user?: UserCard;
+  event?: EventListing;
 }
 
 /** Display order and copy for the genre chips, matching the paper's buckets. */

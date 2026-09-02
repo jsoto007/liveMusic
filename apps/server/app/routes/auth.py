@@ -6,7 +6,6 @@ clients ask for it in the body with ``?client=native`` and put it in their
 secure store.
 """
 
-import secrets
 
 from flask import Blueprint, current_app, request
 
@@ -14,6 +13,7 @@ from ..auth_helpers import load_current_user, require_auth, require_csrf
 from ..extensions import db, limiter
 from ..models import User, UserRole, utcnow
 from ..services.notifications import send_verification_email
+from ..utils.auth_cookies import clear_auth_cookies, set_auth_cookies
 from ..utils.handles import handle_base, unique_handle
 from ..utils.passwords import (
     PasswordPolicyError,
@@ -101,44 +101,8 @@ def _issue_session(user, response_payload: dict, status: int = 200):
         return ok(payload, status=status)
 
     response = ok(payload, status=status)
-    _set_auth_cookies(response, raw_refresh)
+    set_auth_cookies(response, raw_refresh)
     return response
-
-
-def _set_auth_cookies(response, raw_refresh: str) -> None:
-    config = current_app.config
-    secure = config["SESSION_COOKIE_SECURE"]
-    max_age = int(config["REFRESH_TOKEN_TTL"].total_seconds())
-
-    response.set_cookie(
-        config["REFRESH_COOKIE_NAME"],
-        raw_refresh,
-        max_age=max_age,
-        httponly=True,
-        secure=secure,
-        samesite="Lax",
-        # Scoped to the refresh routes: the cookie is not attached to every
-        # API call, so it cannot be replayed by a request that only needed a
-        # bearer token.
-        path="/api/v1/auth",
-    )
-    # Readable by JS on purpose — the client has to echo it back in a header
-    # for the double-submit check to mean anything.
-    response.set_cookie(
-        config["CSRF_COOKIE_NAME"],
-        secrets.token_urlsafe(32),
-        max_age=max_age,
-        httponly=False,
-        secure=secure,
-        samesite="Lax",
-        path="/",
-    )
-
-
-def _clear_auth_cookies(response) -> None:
-    config = current_app.config
-    response.delete_cookie(config["REFRESH_COOKIE_NAME"], path="/api/v1/auth")
-    response.delete_cookie(config["CSRF_COOKIE_NAME"], path="/")
 
 
 def _incoming_refresh_token(body: dict | None) -> str | None:
@@ -281,7 +245,7 @@ def refresh():
         db.session.rollback()
         response = error("SESSION_EXPIRED", "Please sign in again.", status=401)
         if str(exc) != "missing":
-            _clear_auth_cookies(response)
+            clear_auth_cookies(response)
         return response
 
     db.session.commit()
@@ -295,7 +259,7 @@ def refresh():
         return ok(payload)
 
     response = ok(payload)
-    _set_auth_cookies(response, new_raw)
+    set_auth_cookies(response, new_raw)
     return response
 
 
@@ -321,7 +285,7 @@ def logout():
             db.session.commit()
 
     response = ok({"signed_out": True})
-    _clear_auth_cookies(response)
+    clear_auth_cookies(response)
     return response
 
 
@@ -346,5 +310,5 @@ def logout_all():
     db.session.commit()
 
     response = ok({"sessions_revoked": len(rows)})
-    _clear_auth_cookies(response)
+    clear_auth_cookies(response)
     return response

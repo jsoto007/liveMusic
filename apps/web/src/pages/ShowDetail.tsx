@@ -9,13 +9,19 @@
 import { useCallback, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronLeft, Ticket } from "lucide-react";
-import type { EventListing } from "@live-msc/shared";
+import {
+  isOpenableTicketUrl,
+  ticketButtonLabel,
+  ticketHost,
+  type EventListing,
+} from "@live-msc/shared";
 
 import { AddToListButton } from "../components/AddToListButton";
 import { CommentsSection } from "../components/CommentsSection";
 import { ImageUpload } from "../components/ImageUpload";
 import { Notice, Plate, Rule, SaveButton, SectionHead, Spinner } from "../components/Primitives";
 import { ReviewsSection } from "../components/ReviewsSection";
+import { ReportButton } from "../components/Social";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
 import { api } from "../lib/api";
@@ -26,6 +32,8 @@ export function ShowDetailPage() {
   const navigate = useNavigate();
   const { user, initializing } = useAuth();
   const [posterError, setPosterError] = useState<string | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   // Keyed on the reader, and held until the session has settled. This payload
   // is not the same for everyone: `saved`, `going` and `can_manage` are all
@@ -52,6 +60,28 @@ export function ShowDetailPage() {
     },
     [user, navigate, eventId, reload],
   );
+
+  /** Take the show off the bill.
+   *
+   * Cancelled, never deleted: readers have it on their lists, and the
+   * cancelled state is what tells them it is off. The server refuses to delete
+   * a published listing for the same reason. */
+  const cancelShow = useCallback(async () => {
+    const sure = window.confirm(
+      "Take this show off the bill?\n\nIt stays visible, marked cancelled, so " +
+        "anyone who was going finds out. This cannot be undone.",
+    );
+    if (!sure) return;
+    setCancelling(true);
+    setCancelError(null);
+    const result = await api.post(`/api/v1/events/${eventId}/cancel`, {});
+    setCancelling(false);
+    if (!result.ok) {
+      setCancelError(result.error);
+      return;
+    }
+    reload();
+  }, [eventId, reload]);
 
   if ((loading || initializing) && !event) {
     return <div className="page page-narrow"><Spinner /></div>;
@@ -200,21 +230,30 @@ export function ShowDetailPage() {
         >
           {event.going ? "You're going" : "I'm going"}
         </button>
-        {event.ticket_url ? (
-          <a
-            className="btn btn-secondary"
-            href={event.ticket_url}
-            target="_blank"
-            // noopener/noreferrer: the ticket link is supplied by whoever
-            // posted the show, so the new tab must not get a handle on ours.
-            rel="noopener noreferrer"
-          >
-            <Ticket size={16} aria-hidden /> Tickets
-          </a>
-        ) : null}
         <SaveButton saved={event.saved} onToggle={() => void setInterest({ saved: !event.saved })} />
         <AddToListButton eventId={event.id} />
       </div>
+
+      {/* A show that needs a ticket says so, names the seller, and hands the
+          reader straight to that seller's page. Nothing is sold here. */}
+      {isOpenableTicketUrl(event.ticket_url) && !event.cancelled ? (
+        <>
+          <a
+            className="btn btn-primary btn-block"
+            href={event.ticket_url!}
+            target="_blank"
+            // noopener/noreferrer: the link is supplied by whoever posted the
+            // show, so the new tab must not get a handle on ours.
+            rel="noopener noreferrer"
+          >
+            <Ticket size={16} aria-hidden /> {ticketButtonLabel(event.ticket_url)}
+          </a>
+          <p className="ticket-note">
+            Tickets are sold by {ticketHost(event.ticket_url)}, not by Live Msc.
+            The link opens in a new tab.
+          </p>
+        </>
+      ) : null}
 
       {event.artist ? (
         <Link className="btn btn-ghost btn-block" to={`/bands/${event.artist.slug}`}>
@@ -222,11 +261,40 @@ export function ShowDetailPage() {
         </Link>
       ) : null}
 
+      {/* Whoever posted the show can take it off the bill. `can_manage` is the
+          server's answer about the authenticated caller — never inferred here
+          from an artist id the client also holds but cannot vouch for. */}
+      {event.can_manage && !event.cancelled ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-block"
+          disabled={cancelling}
+          onClick={() => void cancelShow()}
+        >
+          {cancelling ? "Cancelling…" : "Cancel this show"}
+        </button>
+      ) : null}
+      {cancelError ? <Notice tone="error">{cancelError}</Notice> : null}
+
       <Rule />
       <ReviewsSection eventId={event.id} alreadyStarted={event.already_started} />
 
       <Rule />
       <CommentsSection eventId={event.id} />
+
+      {/* A listing carries a headline, a note and an uploaded poster, so it
+          takes the same flag as anything else a reader can write. */}
+      {!event.can_manage ? (
+        <>
+          <Rule />
+          <div className="show-report">
+            <ReportButton
+              subject={{ event_id: event.id }}
+              label="Report this listing"
+            />
+          </div>
+        </>
+      ) : null}
     </article>
   );
 }

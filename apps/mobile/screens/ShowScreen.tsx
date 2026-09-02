@@ -1,13 +1,19 @@
 /** 04 — A show. The full listing, its reviews, and the talk underneath. */
 
 import { useCallback, useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
-import { Bookmark, ListPlus, Ticket } from "lucide-react-native";
-import type { EventListing } from "@live-msc/shared";
+import { Bookmark, Flag, ListPlus, Ticket } from "lucide-react-native";
+import {
+  isOpenableTicketUrl,
+  ticketButtonLabel,
+  ticketHost,
+  type EventListing,
+} from "@live-msc/shared";
 
 import { AddToListSheet } from "../components/AddToListSheet";
 import { CommentsSection } from "../components/CommentsSection";
+import { ReportModal } from "../components/ReportModal";
 import { ReviewsSection } from "../components/ReviewsSection";
 import {
   Body,
@@ -47,6 +53,55 @@ export function ShowScreen() {
 
   const event = data?.event ?? null;
   const [listSheetOpen, setListSheetOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [managing, setManaging] = useState(false);
+
+  /** Hand the reader off to whoever is actually selling the ticket.
+
+   * Opened with the system browser, never an in-app view: this is a third
+   * party's payment page and it must show its own address bar so the reader
+   * can see whose site is asking for their card. */
+  const openTickets = useCallback(async () => {
+    const url = event?.ticket_url;
+    if (!isOpenableTicketUrl(url)) return;
+    try {
+      await Linking.openURL(url!);
+    } catch {
+      Alert.alert(
+        "Could not open the ticket page",
+        `Try ${ticketHost(url)} in your browser.`,
+      );
+    }
+  }, [event?.ticket_url]);
+
+  const cancelShow = useCallback(() => {
+    Alert.alert(
+      "Take this show off the bill?",
+      "It stays visible, marked cancelled, so anyone who was going finds out. This cannot be undone.",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Cancel the show",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setManaging(true);
+              const result = await api.post(
+                `/api/v1/events/${params.eventId}/cancel`,
+                {},
+              );
+              setManaging(false);
+              if (!result.ok) {
+                Alert.alert("That did not work", result.error);
+                return;
+              }
+              reload();
+            })();
+          },
+        },
+      ],
+    );
+  }, [params.eventId, reload]);
 
   const setInterest = useCallback(
     async (patch: { saved?: boolean; going?: boolean }) => {
@@ -145,16 +200,6 @@ export function ShowScreen() {
           style={{ flex: 1 }}
           onPress={() => void setInterest({ going: !event.going })}
         />
-        {event.ticket_url ? (
-          <Button
-            label="Tickets"
-            style={{ flex: 1 }}
-            icon={<Ticket size={16} color={colors.text} />}
-            // The URL came from whoever posted the show, so it is opened in the
-            // system browser rather than an in-app view that shares our session.
-            onPress={() => void Linking.openURL(event.ticket_url!)}
-          />
-        ) : null}
         <Button
           label=""
           on={event.saved}
@@ -168,6 +213,24 @@ export function ShowScreen() {
           onPress={() => void setInterest({ saved: !event.saved })}
         />
       </View>
+
+      {/* A show that needs a ticket says so, names the seller, and hands the
+          reader straight to that seller's page. Nothing is sold in here. */}
+      {isOpenableTicketUrl(event.ticket_url) && !event.cancelled ? (
+        <>
+          <Button
+            label={ticketButtonLabel(event.ticket_url)}
+            variant="primary"
+            icon={<Ticket size={16} color={colors.accent} />}
+            style={{ marginTop: space.s2 }}
+            onPress={() => void openTickets()}
+          />
+          <Text style={styles.ticketNote}>
+            Tickets are sold by {ticketHost(event.ticket_url)}, not by Live Msc.
+            The link opens in your browser.
+          </Text>
+        </>
+      ) : null}
 
       <Button
         label="Add to a list"
@@ -187,13 +250,47 @@ export function ShowScreen() {
         />
       ) : null}
 
+      {/* Whoever posted the show can take it off the bill. The server decides
+          this from the authenticated user — `can_manage` is its answer, not
+          something inferred here from an artist id the client also holds. */}
+      {event.can_manage && !event.cancelled ? (
+        <Button
+          label={managing ? "Cancelling…" : "Cancel this show"}
+          variant="ghost"
+          disabled={managing}
+          style={{ marginTop: space.s2 }}
+          onPress={cancelShow}
+        />
+      ) : null}
+
       <ReviewsSection eventId={params.eventId} alreadyStarted={event.already_started} />
       <CommentsSection eventId={params.eventId} />
+
+      {/* A listing carries a headline, a note and an uploaded poster, so it
+          needs the same flag as anything else a reader can write. */}
+      {!event.can_manage ? (
+        <Button
+          label="Report this listing"
+          variant="ghost"
+          icon={<Flag size={14} color={ink.soft} strokeWidth={1.5} />}
+          style={{ marginTop: space.s6 }}
+          onPress={() =>
+            user ? setReportOpen(true) : navigation.navigate("SignIn")
+          }
+        />
+      ) : null}
 
       <AddToListSheet
         visible={listSheetOpen}
         eventId={params.eventId}
         onClose={() => setListSheetOpen(false)}
+      />
+
+      <ReportModal
+        visible={reportOpen}
+        subject={{ event_id: params.eventId }}
+        title="Report this listing"
+        onClose={() => setReportOpen(false)}
       />
     </ScrollView>
   );
@@ -206,6 +303,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyItalic,
     fontSize: 11,
     color: ink.faint,
+    marginTop: space.s1,
+  },
+  ticketNote: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 18,
+    color: ink.soft,
     marginTop: space.s1,
   },
   support: {
