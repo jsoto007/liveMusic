@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { AdminReport, ImageReview } from "@live-msc/shared";
 
 import { Empty, Notice, Plate, SectionHead, Spinner, Tag } from "../components/Primitives";
@@ -121,13 +122,18 @@ function ReportQueue() {
               ) : null}
             </span>
             <span className="comment-actions" style={{ marginTop: 0 }}>
-              {report.subject_type === "comment" || report.subject_type === "review" ? (
+              {report.subject_type === "comment" ||
+              report.subject_type === "review" ||
+              report.subject_type === "event" ? (
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => void resolve(report, "remove_content")}
                 >
-                  Remove it
+                  {/* A listing is taken off the bill rather than destroyed —
+                      readers hold it on their lists, and the cancelled state
+                      is what tells them it is off. Its poster is deleted. */}
+                  {report.subject_type === "event" ? "Take it off the bill" : "Remove it"}
                 </button>
               ) : null}
               <button
@@ -160,6 +166,27 @@ function ReportQueue() {
           {report.reported_user ? (
             <div style={{ marginTop: "var(--space-2)" }}>
               <Byline user={report.reported_user} />
+            </div>
+          ) : null}
+          {report.event ? (
+            <div style={{ marginTop: "var(--space-2)" }}>
+              <Link className="listing-artist" to={`/shows/${report.event.id}`}>
+                {report.event.headline}
+              </Link>
+              <p className="listing-note">
+                {report.event.genre_label}
+                {report.event.venue ? `  ·  ${report.event.venue.name}` : ""}
+                {`  ·  ${report.event.day_label} ${report.event.time_label ?? ""}`}
+              </p>
+              {report.event.short_line ? (
+                <p className="comment-body">{report.event.short_line}</p>
+              ) : null}
+              {report.event.poster_url ? (
+                <Plate
+                  src={report.event.poster_url}
+                  alt={`Poster on the reported listing “${report.event.headline}”`}
+                />
+              ) : null}
             </div>
           ) : null}
         </div>

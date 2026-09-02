@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, Linking, StyleSheet, Text, TextInput, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -48,6 +48,7 @@ import {
   inputStyle,
 } from "../components/ui";
 import { api, useAuth } from "../lib/auth";
+import { PRIVACY_URL, TERMS_URL } from "../lib/legal";
 import { colors, fonts, ink, radius, space, tabular } from "../lib/theme";
 import { useResource } from "../lib/useResource";
 import type { RootNavigation } from "../navigation/types";
@@ -163,7 +164,126 @@ export function AccountScreen() {
 
       <Rule style={{ marginVertical: space.s6 }} />
       <Button label="Sign out" onPress={() => void signOut()} />
+
+      <SectionHead title="The small print" />
+      <Button
+        label="Terms of use"
+        variant="ghost"
+        style={{ marginTop: space.s3 }}
+        onPress={() => void Linking.openURL(TERMS_URL)}
+      />
+      <Button
+        label="Privacy policy"
+        variant="ghost"
+        style={{ marginTop: space.s2 }}
+        onPress={() => void Linking.openURL(PRIVACY_URL)}
+      />
+
+      <CloseAccountPanel />
     </Screen>
+  );
+}
+
+/**
+ * Closing the account, for good.
+ *
+ * App Store Review Guideline 5.1.1(v) requires that an account which can be
+ * created in the app can be deleted in the app — not emailed about, not
+ * deactivated. The password is asked for because an unlocked phone on a table
+ * should not be enough to do the most destructive thing a session can do, and
+ * what is destroyed is spelled out in full before the button appears rather
+ * than in a sentence nobody reads afterwards.
+ */
+function CloseAccountPanel() {
+  const { signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirm = useCallback(() => {
+    Alert.alert(
+      "Delete your account?",
+      "This cannot be undone. Your profile, your list, your bands and everything you have written go with it.",
+      [
+        { text: "Keep my account", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setBusy(true);
+              setError(null);
+              const result = await api.post("/api/v1/me/delete", { password });
+              setBusy(false);
+              if (!result.ok) {
+                setError(result.error);
+                return;
+              }
+              // The account is gone; drop the local session so the app does
+              // not sit there holding a token for a user that no longer is.
+              await signOut();
+            })();
+          },
+        },
+      ],
+    );
+  }, [password, signOut]);
+
+  return (
+    <View style={{ marginTop: space.s6 }}>
+      <Rule />
+      {!open ? (
+        <Button
+          label="Delete your account"
+          variant="ghost"
+          style={{ marginTop: space.s4 }}
+          onPress={() => setOpen(true)}
+        />
+      ) : (
+        <View style={{ marginTop: space.s4 }}>
+          <Heading size="h4">Delete your account</Heading>
+          <Body muted style={{ marginTop: space.s2 }}>
+            This is permanent. Your profile, your list, the bands you run and
+            everything you have written are deleted. Shows you posted that
+            have not happened yet are cancelled so nobody turns up to them;
+            past listings stay in the record with your name off them.
+          </Body>
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          <View style={{ marginTop: space.s3 }}>
+            <TextInput
+              style={inputStyle}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Your password"
+              placeholderTextColor={ink.faint}
+              secureTextEntry
+              autoCapitalize="none"
+              autoComplete="current-password"
+              accessibilityLabel="Your password"
+            />
+          </View>
+          <View style={{ flexDirection: "row", gap: space.s2, marginTop: space.s3 }}>
+            <Button
+              label="Keep my account"
+              style={{ flex: 1 }}
+              onPress={() => {
+                setOpen(false);
+                setPassword("");
+                setError(null);
+              }}
+            />
+            <Button
+              label={busy ? "Deleting…" : "Delete for good"}
+              variant="ghost"
+              style={{ flex: 1 }}
+              disabled={busy || !password}
+              onPress={confirm}
+            />
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -238,11 +358,14 @@ function BandPanel({ artist }: { artist: Artist }) {
 
   const setPhoto = useCallback(async () => {
     setError(null);
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError("Photo access is needed to set a band photo.");
-      return;
-    }
+    // No permission request before the picker.
+    //
+    // `launchImageLibraryAsync` presents the system picker, which runs out of
+    // process and hands back only the one image the reader chose. It needs no
+    // authorisation at all. Calling `requestMediaLibraryPermissionsAsync`
+    // first made iOS ask for access to the *entire* photo library — a far
+    // larger grant than attaching one picture requires, and one the reader can
+    // refuse, at which point the feature was dead for no reason.
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,

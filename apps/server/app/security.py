@@ -95,7 +95,14 @@ def should_force_https(app) -> bool:
 #: Origins the map basemap is fetched from. Tiles are images only — the host is
 #: deliberately NOT in ``connect-src``, so a compromised tile URL cannot be used
 #: to exfiltrate anything over fetch/XHR.
-MAP_TILE_ORIGINS = ("https://basemaps.cartocdn.com",)
+#:
+#: `basemaps.cartocdn.com` was here until CARTO began stamping
+#: "API KEY REQUIRED" across every unauthenticated tile; the web map now draws
+#: OpenStreetMap's standard layer, which needs no key. If you point
+#: `VITE_MAP_TILE_URL` at a different provider you must add its host here too,
+#: or the map renders as an empty grey frame whose only clue is a CSP
+#: violation in the console.
+MAP_TILE_ORIGINS = ("https://tile.openstreetmap.org",)
 
 
 def _r2_connect_sources(app) -> list[str]:

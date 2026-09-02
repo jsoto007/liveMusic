@@ -35,7 +35,7 @@ export function ListScreen() {
   const { user, initializing } = useAuth();
   const focused = useIsFocused();
 
-  const { data, error, loading } = useResource<ListResponse>(
+  const { data, error, loading, refreshing, reload } = useResource<ListResponse>(
     () => api.get<ListResponse>("/api/v1/me/list"),
     [user?.id ?? "", focused],
   );
@@ -99,7 +99,7 @@ export function ListScreen() {
   const atCap = maxLists > 0 && namedLists.length >= maxLists;
 
   return (
-    <Screen>
+    <Screen onRefresh={() => { reload(); lists.reload(); }} refreshing={refreshing}>
       <Heading size="h2" display>
         Your list
       </Heading>

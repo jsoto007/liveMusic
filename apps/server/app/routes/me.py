@@ -1,6 +1,6 @@
 """The caller's own account: profile, list, band accounts."""
 
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 
 from ..auth_helpers import load_current_user, require_auth
 from ..extensions import db, limiter
@@ -14,8 +14,12 @@ from ..models import (
     UserRole,
     utcnow,
 )
+from ..services import account as account_service
 from ..services import events as event_service
+from ..services.r2_storage import R2Storage
+from ..utils.auth_cookies import clear_auth_cookies
 from ..utils.handles import is_valid_handle, normalize_handle
+from ..utils.passwords import verify_password
 from ..utils.slugs import unique_slug
 from .response import error, ok
 from .serializers import serialize_artist, serialize_event, serialize_user
@@ -103,6 +107,63 @@ def update_me():
 
     db.session.commit()
     return ok({"user": serialize_user(user, include_email=True)})
+
+
+@me_bp.post("/me/delete")
+@require_auth
+@limiter.limit("5 per hour")
+def delete_me():
+    """Close the account for good.
+
+    App Store Review Guideline 5.1.1(v): an app that lets someone create an
+    account must let them delete it from inside the app. This is that route,
+    and it really deletes — there is no soft-delete flag to un-set, and no
+    "come back within 30 days" grace period that would leave the row sitting
+    there. What survives, and why, is documented in `services/account.py`.
+
+    The current password is required. Deleting an account is the single most
+    destructive thing a session can do, and an unlocked phone left on a table
+    should not be enough to do it.
+    """
+    user = load_current_user()
+    body, err = get_json(request)
+    if err:
+        return err
+
+    password, err = parse_string(body.get("password"), "password", max_length=200)
+    if err:
+        return err
+
+    if not verify_password(password, user.password_hash):
+        # Deliberately not rate-limit-exempt and deliberately vague: this is
+        # the same answer a wrong password gets everywhere else.
+        return error(
+            "INVALID_CREDENTIALS",
+            "That password is not right.",
+            {"password": "invalid"},
+            status=403,
+        )
+
+    keys = account_service.delete_account(db.session, user)
+    db.session.commit()
+
+    # After the commit, and never before, and never able to fail the request:
+    # the account is already gone by this point, so anything raised here would
+    # turn a successful deletion into a 500 and send the caller off to retry
+    # something that has already happened. An object left behind costs pennies
+    # and the sweeper will find it; an account that appears not to have been
+    # deleted is a compliance failure and a frightened user.
+    for key in keys:
+        try:
+            R2Storage.delete_object(key)
+        except Exception:  # noqa: BLE001 - purge is best-effort by design
+            current_app.logger.exception(
+                "Account deleted, but its stored object could not be removed: %s", key
+            )
+
+    response = ok({"deleted": True})
+    clear_auth_cookies(response)
+    return response
 
 
 @me_bp.get("/me/list")

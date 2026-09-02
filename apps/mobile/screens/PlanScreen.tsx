@@ -6,12 +6,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
-import MapView, { Marker, UrlTile, type Region } from "react-native-maps";
-import { queryString, type EventListing } from "@live-msc/shared";
+import MapView, { Marker, PROVIDER_DEFAULT, type Region } from "react-native-maps";
+import { queryString, type EventListing, type PlaceSearchResult } from "@live-msc/shared";
 
 import { ListingRow } from "../components/Listing";
 import { Button, Empty, Heading, Kicker, Notice, Screen, SectionHead, Spinner } from "../components/ui";
-import { api } from "../lib/auth";
+import { api, useAuth } from "../lib/auth";
 import { colors, fonts, ink, radius, shadow, space, tabular } from "../lib/theme";
 import { useResource } from "../lib/useResource";
 import type { RootNavigation } from "../navigation/types";
@@ -23,19 +23,64 @@ interface NearbyResponse {
   fallback_nearest: boolean;
 }
 
-const FALLBACK = { latitude: 41.824, longitude: -71.4128 };
+/** Where the map starts when we know nothing at all: no location permission,
+ * no account, no home city. Deliberately the paper's own city rather than a
+ * pretend "centre of the world", and only ever a starting frame — the moment
+ * a reader signs in with a home city, or taps "use my location", the origin
+ * moves and this is never seen again. */
+const LAST_RESORT_ORIGIN = { latitude: 41.824, longitude: -71.4128 };
 const MAP_HEIGHT = 320;
-const INITIAL_REGION: Region = { ...FALLBACK, latitudeDelta: 0.14, longitudeDelta: 0.14 };
-const TILE_URL = "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+const INITIAL_REGION: Region = {
+  ...LAST_RESORT_ORIGIN,
+  latitudeDelta: 0.14,
+  longitudeDelta: 0.14,
+};
 
 export function PlanScreen() {
   const navigation = useNavigation<RootNavigation>();
-  const [origin, setOrigin] = useState(FALLBACK);
+  const { user } = useAuth();
+  const [origin, setOrigin] = useState(LAST_RESORT_ORIGIN);
   const [originIsReader, setOriginIsReader] = useState(false);
+  const [originLabel, setOriginLabel] = useState<string | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
 
-  const { data, error, loading } = useResource<NearbyResponse>(
+  const homeCity = user?.home_city?.trim() || null;
+
+  const map = useRef<MapView | null>(null);
+  const hasFramed = useRef(false);
+
+  // Centre on the reader's own city before asking for anything.
+  //
+  // The map used to open on a hard-coded pair of coordinates whatever the
+  // reader had told us: someone whose home city was New York, looking at a
+  // bill that was entirely New York, was shown "nothing within five miles"
+  // and a list of shows 140 miles away. The city is already on their account;
+  // this just uses it. Skipped entirely once GPS has given us something
+  // better, and never overrides it.
+  useEffect(() => {
+    if (!homeCity || originIsReader) return;
+    let cancelled = false;
+    void (async () => {
+      const result = await api.get<PlaceSearchResult>(
+        `/api/v1/geocode/autocomplete${queryString({ q: homeCity, limit: 1 })}`,
+      );
+      if (cancelled || !result.ok) return;
+      const place = result.data.places[0];
+      if (!place) return;
+      setOrigin({ latitude: place.latitude, longitude: place.longitude });
+      setOriginLabel(place.city ?? homeCity);
+      hasFramed.current = false;
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // `originIsReader` is read, not tracked: once GPS wins, this must not
+    // re-run and drag the map back to the city centre.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [homeCity]);
+
+  const { data, error, loading, refreshing, reload } = useResource<NearbyResponse>(
     () =>
       api.get<NearbyResponse>(
         `/api/v1/events/nearby${queryString({ ...origin, radius_miles: 5 })}`,
@@ -43,8 +88,6 @@ export function PlanScreen() {
     [origin.latitude, origin.longitude],
   );
 
-  const map = useRef<MapView | null>(null);
-  const hasFramed = useRef(false);
 
   useEffect(() => {
     const located = (data?.events ?? []).filter(
@@ -101,7 +144,7 @@ export function PlanScreen() {
   // trains people to refuse it. The city centre is shown until they ask.
 
   return (
-    <Screen>
+    <Screen onRefresh={reload} refreshing={refreshing}>
       <View style={styles.head}>
         <View style={{ flex: 1 }}>
           <Heading size="h2" display>
@@ -126,21 +169,35 @@ export function PlanScreen() {
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       {data?.fallback_nearest ? (
-        <Notice>Nothing within five miles, so these are the nearest upcoming shows.</Notice>
+        <Notice>
+          {originIsReader
+            ? "Nothing within five miles of you, so these are the nearest upcoming shows."
+            : originLabel
+              ? `Nothing within five miles of ${originLabel}, so these are the nearest upcoming shows.`
+              : "These are the nearest upcoming shows. Tap “use my location”, or set a home city on your account, to centre this on you."}
+        </Notice>
       ) : null}
 
+      {/* Apple's own map, not a raster overlay.
+       *
+       * This used to draw CARTO's basemap through a `UrlTile` with no API
+       * key. CARTO now stamps "API KEY REQUIRED" across every unauthenticated
+       * tile, so the Map tab shipped covered in someone else's watermark —
+       * and using it that way was a terms-of-service problem besides. MapKit
+       * is already on the device, needs no key, no attribution plumbing and
+       * no third-party request, and it renders in the light style the rest of
+       * the paper is set in. */}
       <MapView
         ref={map}
+        provider={PROVIDER_DEFAULT}
         style={styles.mapframe}
         initialRegion={INITIAL_REGION}
-        mapType="none"
         showsUserLocation={originIsReader}
         showsMyLocationButton={false}
         toolbarEnabled={false}
         loadingEnabled
         accessibilityLabel="Map of nearby upcoming shows"
       >
-        <UrlTile urlTemplate={TILE_URL} maximumZ={19} flipY={false} />
         {(data?.events ?? []).map((event) =>
           event.venue?.latitude != null && event.venue.longitude != null ? (
           <Marker
