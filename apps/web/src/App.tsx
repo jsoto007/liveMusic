@@ -29,6 +29,7 @@ import { ClassifiedsPage } from "./pages/Classifieds";
 import { DeskPage } from "./pages/Desk";
 import { FeedPageView } from "./pages/Feed";
 import { GigDetailPage } from "./pages/GigDetail";
+import { PrivacyPage, TermsPage } from "./pages/Legal";
 import { ListDetailPageView } from "./pages/ListDetail";
 import { MessagesPage, ThreadPage } from "./pages/Messages";
 import { MyListPage } from "./pages/MyList";
@@ -217,6 +218,10 @@ export function App() {
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Reachable without an account, and linked from the App Store
+              listing and from the mobile app's Join and account screens. */}
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route
             path="*"
             element={
@@ -230,6 +235,12 @@ export function App() {
           />
         </Routes>
       </main>
+
+      <footer className="colophon">
+        <Link to="/terms">Terms of use</Link>
+        <span aria-hidden>·</span>
+        <Link to="/privacy">Privacy policy</Link>
+      </footer>
     </div>
   );
 }

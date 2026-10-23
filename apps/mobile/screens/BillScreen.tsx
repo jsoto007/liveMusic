@@ -40,7 +40,7 @@ export function BillScreen() {
   const focused = useIsFocused();
   const [day, setDay] = useState<"all" | DayBucket>("all");
 
-  const { data, error, loading, reload } = useResource<BillPage>(
+  const { data, error, loading, refreshing, reload } = useResource<BillPage>(
     () => api.get<BillPage>(`/api/v1/events${queryString({ day })}`),
     [day],
   );
@@ -94,7 +94,7 @@ export function BillScreen() {
   );
 
   return (
-    <Screen>
+    <Screen onRefresh={reload} refreshing={refreshing}>
       {/* The masthead. The navigator's header is hidden on the tabs so each
           screen can carry the paper's own, in the display cut on the ground
           colour rather than a chrome bar. */}

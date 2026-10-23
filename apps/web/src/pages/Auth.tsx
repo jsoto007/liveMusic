@@ -161,8 +161,19 @@ export function JoinPage() {
         </div>
       </div>
 
+      {/* Guideline 1.2: a reader who can post, comment and review has to be
+          shown the terms — including the line about what gets you removed —
+          before the account exists, not buried in a settings screen after. */}
+      <p className="form-note" style={{ marginTop: "var(--space-4)" }}>
+        By creating an account you agree to the{" "}
+        <Link to="/terms">terms of use</Link> and the{" "}
+        <Link to="/privacy">privacy policy</Link>. There is no tolerance for
+        abusive listings, messages or comments — anything reported is read by
+        the editors, and accounts that post it are removed.
+      </p>
+
       <button type="submit" className="btn btn-primary btn-block" disabled={busy}
-        style={{ marginTop: "var(--space-4)" }}>
+        style={{ marginTop: "var(--space-3)" }}>
         {busy ? "Creating…" : "Create account"}
       </button>
       <p className="form-note" style={{ textAlign: "center" }}>

@@ -1122,6 +1122,13 @@ class ContentReport(db.Model):
     reported_user_id = sa.Column(
         sa.Uuid(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
+    # A listing is the paper's primary user-written surface — a headline, a
+    # support line, a note and an uploaded poster — so it has to be reportable
+    # like anything else a reader can write. It was the one UGC surface with
+    # no flag on it.
+    event_id = sa.Column(
+        sa.Uuid(as_uuid=True), sa.ForeignKey("events.id", ondelete="SET NULL"), nullable=True
+    )
     reason = sa.Column(pg_enum(ReportReason, "report_reason"), nullable=False)
     detail = sa.Column(sa.String(500), nullable=True)
     status = sa.Column(
@@ -1144,7 +1151,8 @@ class ContentReport(db.Model):
         sa.CheckConstraint(
             "(CASE WHEN comment_id IS NOT NULL THEN 1 ELSE 0 END"
             " + CASE WHEN review_id IS NOT NULL THEN 1 ELSE 0 END"
-            " + CASE WHEN reported_user_id IS NOT NULL THEN 1 ELSE 0 END) <= 1",
+            " + CASE WHEN reported_user_id IS NOT NULL THEN 1 ELSE 0 END"
+            " + CASE WHEN event_id IS NOT NULL THEN 1 ELSE 0 END) <= 1",
             name="ck_content_reports_one_subject",
         ),
     )

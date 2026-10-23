@@ -69,6 +69,13 @@ export const fonts = {
 } as const;
 
 /** The 1.15× density scale, matching `--space-*`. */
+/** The column the paper is set in — the same 940px the web `.page` uses.
+ *
+ * On a phone this never binds. On an iPad it is the difference between a
+ * newspaper column and a line of body copy running the full eleven inches,
+ * which is unreadable and is what `supportsTablet: true` gets reviewed on. */
+export const maxContentWidth = 940;
+
 export const space = {
   s1: 4.6,
   s2: 9.2,

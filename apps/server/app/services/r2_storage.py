@@ -13,6 +13,16 @@ from urllib.parse import urlparse
 import boto3
 from botocore.config import Config as BotoConfig
 from botocore.exceptions import BotoCoreError, ClientError
+
+
+class StorageUnavailable(RuntimeError):
+    """The object store could not be reached or refused our credentials.
+
+    Deliberately distinct from "the object is not there": one is a caller
+    problem the caller can fix by uploading again, the other is ours and no
+    amount of retrying by the caller will help.
+    """
+
 from flask import current_app
 
 # What a client is allowed to upload, and what extension we store it under.
@@ -147,21 +157,32 @@ class R2Storage:
 
         This is the completion gate: it is the only way the server learns what
         actually got uploaded, since it never saw the bytes.
+
+        Raises :class:`StorageUnavailable` when the bucket could not be asked —
+        bad credentials, a revoked token, a wrong bucket name, a network
+        failure. That case used to be flattened into ``None``, so a dead R2
+        credential reached the uploader as *"We could not find that file in
+        storage. Please upload it again."* — user error for a config outage,
+        which is exactly the wrong thing to tell someone and exactly the wrong
+        thing to page on.
         """
         client = build_client()
         if client is None:
-            return None
+            raise StorageUnavailable("R2 is not configured.")
         try:
             response = client.head_object(Bucket=_config()["R2_BUCKET"], Key=key)
         except ClientError as exc:
-            code = exc.response.get("Error", {}).get("Code")
-            if code in {"404", "NoSuchKey", "NotFound"}:
+            code = str(exc.response.get("Error", {}).get("Code"))
+            status = (
+                exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            )
+            if code in {"404", "NoSuchKey", "NotFound"} or status == 404:
                 return None
             current_app.logger.error("R2 HEAD failed for %s: %s", key, exc)
-            return None
+            raise StorageUnavailable(f"R2 HEAD failed: {code}") from exc
         except BotoCoreError as exc:
             current_app.logger.error("R2 HEAD failed for %s: %s", key, exc)
-            return None
+            raise StorageUnavailable("R2 HEAD failed.") from exc
 
         return {
             "size_bytes": response.get("ContentLength"),

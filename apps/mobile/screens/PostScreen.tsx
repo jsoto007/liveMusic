@@ -10,6 +10,7 @@ import {
   AGE_OPTIONS,
   GENRES,
   inferContentType,
+  isOpenableTicketUrl,
   uploadDirect,
   type AgeRestriction,
   type EventListing,
@@ -56,6 +57,7 @@ export function PostScreen() {
   const [ages, setAges] = useState<AgeRestriction>("21_plus");
   const [genre, setGenre] = useState<Genre>("rock_punk");
   const [note, setNote] = useState("");
+  const [ticketUrl, setTicketUrl] = useState("");
   const [poster, setPoster] = useState<ImagePicker.ImagePickerAsset | null>(null);
   // Held so the venue is posted with the exact coordinates the band picked,
   // rather than wherever a later name search happens to land.
@@ -64,6 +66,11 @@ export function PostScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [posted, setPosted] = useState<EventListing | null>(null);
+  // Told separately from `error`, which belongs to the form and is not
+  // rendered once the confirmation screen replaces it. Without this the
+  // band saw "It's on the bill" with a tick and never learned that the
+  // photo they chose had not attached.
+  const [posterFailed, setPosterFailed] = useState(false);
 
   if (!user) {
     return (
@@ -89,6 +96,13 @@ export function PostScreen() {
             Set into the listings and pushed to everyone following you.
           </Body>
         </View>
+        {posterFailed ? (
+          <Notice tone="error">
+            The photo did not upload, so the listing is running with stock art.
+            Everything else is on the bill. Try adding the photo again from the
+            listing in a little while.
+          </Notice>
+        ) : null}
         <Button
           label="See it in the bill"
           variant="primary"
@@ -101,8 +115,10 @@ export function PostScreen() {
           style={{ marginTop: space.s2 }}
           onPress={() => {
             setPosted(null);
+            setPosterFailed(false);
             setHeadline("");
             setNote("");
+            setTicketUrl("");
             setPoster(null);
             setVenuePlace(null);
           }}
@@ -120,11 +136,14 @@ export function PostScreen() {
   })();
 
   async function pickPoster() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError("Photo access is needed to attach a poster.");
-      return;
-    }
+    // No permission request before the picker.
+    //
+    // `launchImageLibraryAsync` presents the system picker, which runs out of
+    // process and hands back only the one image the reader chose. It needs no
+    // authorisation at all. Calling `requestMediaLibraryPermissionsAsync`
+    // first made iOS ask for access to the *entire* photo library — a far
+    // larger grant than attaching one picture requires, and one the reader can
+    // refuse, at which point the feature was dead for no reason.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
@@ -148,8 +167,15 @@ export function PostScreen() {
 
   async function submit() {
     setError(null);
+    setPosterFailed(false);
     if (startsAt.getTime() <= Date.now()) {
       setError("Choose a date and time in the future.");
+      return;
+    }
+
+    const ticket = ticketUrl.trim();
+    if (ticket && !isOpenableTicketUrl(ticket)) {
+      setError("The ticket link needs to be a full web address, starting http:// or https://.");
       return;
     }
 
@@ -171,6 +197,7 @@ export function PostScreen() {
         price_cents: priceCents,
         age_restriction: ages,
         short_line: note.trim() || undefined,
+        ticket_url: ticket || undefined,
         publish: true,
       });
 
@@ -201,7 +228,7 @@ export function PostScreen() {
               { uri: poster.uri, name, type: contentType },
             );
           } catch {
-            setError("The show is posted, but the poster did not upload. You can add it later.");
+            setPosterFailed(true);
           }
         }
       }
@@ -364,6 +391,24 @@ export function PostScreen() {
                 />
               ))}
             </View>
+          </Field>
+
+          <Field
+            label="Ticket link"
+            note="Where tickets are actually sold — the venue's box office, or your ticketing page. Readers are sent straight there."
+          >
+            <TextInput
+              style={inputStyle}
+              value={ticketUrl}
+              onChangeText={setTicketUrl}
+              placeholder="https://dice.fm/event/…"
+              placeholderTextColor={ink.faint}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              inputMode="url"
+              maxLength={500}
+            />
           </Field>
 
           <Field label="A line for the paper">

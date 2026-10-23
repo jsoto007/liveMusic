@@ -163,14 +163,19 @@ export function PersonRow({
 }
 
 /**
- * "Report" — a small dialog naming a reason. Used for comments, reviews and
- * people; exactly one subject id is passed.
+ * "Report" — a small dialog naming a reason. Used for listings, comments,
+ * reviews and people; exactly one subject id is passed.
  */
 export function ReportButton({
   subject,
   label = "Report",
 }: {
-  subject: { comment_id?: string; review_id?: string; reported_user_id?: string };
+  subject: {
+    comment_id?: string;
+    review_id?: string;
+    reported_user_id?: string;
+    event_id?: string;
+  };
   label?: string;
 }) {
   const { user } = useAuth();

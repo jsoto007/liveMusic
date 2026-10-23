@@ -70,11 +70,14 @@ export function PublicProfilePanel() {
   async function setAvatar() {
     if (!user) return;
     setError(null);
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError("Photo access is needed to set a portrait.");
-      return;
-    }
+    // No permission request before the picker.
+    //
+    // `launchImageLibraryAsync` presents the system picker, which runs out of
+    // process and hands back only the one image the reader chose. It needs no
+    // authorisation at all. Calling `requestMediaLibraryPermissionsAsync`
+    // first made iOS ask for access to the *entire* photo library — a far
+    // larger grant than attaching one picture requires, and one the reader can
+    // refuse, at which point the feature was dead for no reason.
     const picked = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,

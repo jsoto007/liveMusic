@@ -1310,3 +1310,49 @@
   color: var(--color-neutral-500);
   font-variant-numeric: tabular-nums;
 }
+
+/* ── Colophon ────────────────────────────────────────────────────────────
+ *
+ * The foot of every page: where the terms and the privacy policy live. A
+ * hairline and small caps, like the rest of the paper's structural furniture —
+ * present on every page because a policy nobody can find is not a policy. */
+
+.colophon {
+  border-top: 1px solid var(--color-divider);
+  margin-top: auto;
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  display: flex;
+  justify-content: center;
+  gap: var(--space-2);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 52%, transparent);
+}
+
+.colophon a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.colophon a:hover,
+.colophon a:focus-visible {
+  color: var(--color-accent-700);
+  border-bottom-color: currentColor;
+}
+
+/* The line under a "buy tickets" button, naming who is actually selling. */
+.ticket-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--color-text) 62%, transparent);
+  margin-top: var(--space-1);
+}
+
+/* The flag at the foot of a listing — quiet, but findable. */
+.show-report {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-3);
+}

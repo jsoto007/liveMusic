@@ -33,12 +33,31 @@ import type { EventListing } from "@live-msc/shared";
 
 import { stockPosterUrl } from "../lib/stock";
 
-export const TILE_URL = "https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-export const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
-  '&copy; <a href="https://carto.com/attributions">CARTO</a>';
+/**
+ * The basemap.
+ *
+ * This used to point at `basemaps.cartocdn.com` with no API key. CARTO now
+ * stamps "API KEY REQUIRED" across every unauthenticated tile, so the map
+ * shipped covered in someone else's watermark — and serving it that way was a
+ * terms-of-service problem besides. OpenStreetMap's standard tiles need no
+ * key, and the `.mapframe` filter warms them into the paper's ground.
+ *
+ * Set `VITE_MAP_TILE_URL` (and `VITE_MAP_TILE_ATTRIBUTION`) to move to a
+ * keyed provider — CARTO, Stadia, your own tile server — the day this map
+ * gets enough traffic to matter. OSM's tile usage policy asks that heavy
+ * consumers run their own; a listings paper for one city is not that, but it
+ * is worth watching.
+ */
+const OSM_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
-/** Leaflet's own cap for this basemap. Past it the host serves nothing. */
+export const TILE_URL =
+  (import.meta.env.VITE_MAP_TILE_URL ?? "").trim() || OSM_TILE_URL;
+export const TILE_ATTRIBUTION =
+  (import.meta.env.VITE_MAP_TILE_ATTRIBUTION ?? "").trim() || OSM_ATTRIBUTION;
+
+/** The standard OSM layer serves to 19; past it the host returns nothing. */
 const MAX_ZOOM = 19;
 const DEFAULT_ZOOM = 13;
 

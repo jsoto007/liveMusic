@@ -220,3 +220,109 @@ def test_the_completion_side_also_enforces_the_quota(client, band, stub_r2, app,
     response = complete(client, headers, data["upload_id"])
     assert response.status_code == 409
     assert db.session.query(AudioSample).count() == quota
+
+
+# ── Storage outage vs missing object ───────────────────────────────────────
+
+
+def test_a_storage_outage_is_a_503_and_leaves_the_ticket_usable(
+    client, db, stub_r2, monkeypatch
+):
+    """A dead R2 credential used to reach the uploader as "we could not find
+    that file — upload it again": our config outage, reported as their
+    mistake, and with the ticket burned so the retry failed too.
+
+    It must now say the truth, and leave the ticket PENDING so finishing the
+    same upload works the moment storage comes back.
+    """
+    from app.models import MediaUpload, UploadStatus
+    from app.services import r2_storage
+
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "band@example.com",
+            "password": "correct-horse-battery",
+            "display_name": "Band",
+        },
+    )
+    headers = {"Authorization": f"Bearer {registered.get_json()['data']['access_token']}"}
+    user_id = registered.get_json()["data"]["user"]["id"]
+
+    ticket = client.post(
+        "/api/v1/uploads",
+        json={
+            "purpose": "user_avatar",
+            "target_id": user_id,
+            "filename": "me.jpg",
+            "content_type": "image/jpeg",
+            "size_bytes": 2048,
+        },
+        headers=headers,
+    )
+    assert ticket.status_code == 201
+    upload_id = ticket.get_json()["data"]["upload_id"]
+    key = ticket.get_json()["data"]["key"]
+    stub_r2["put"](key, size_bytes=2048, content_type="image/jpeg")
+
+    def _unavailable(_key):
+        raise r2_storage.StorageUnavailable("credentials rejected")
+
+    monkeypatch.setattr(
+        r2_storage.R2Storage, "head_object", staticmethod(_unavailable)
+    )
+
+    response = client.post(f"/api/v1/uploads/{upload_id}/complete", json={}, headers=headers)
+    assert response.status_code == 503
+    assert response.get_json()["error"]["code"] == "STORAGE_UNAVAILABLE"
+
+    db.session.expire_all()
+    row = db.session.get(MediaUpload, __import__("uuid").UUID(upload_id))
+    assert row.status is UploadStatus.PENDING, "the outage must not burn the ticket"
+
+    # And once storage answers again, the same ticket completes.
+    monkeypatch.setattr(
+        r2_storage.R2Storage,
+        "head_object",
+        staticmethod(lambda k: stub_r2["objects"].get(k)),
+    )
+    retry = client.post(f"/api/v1/uploads/{upload_id}/complete", json={}, headers=headers)
+    assert retry.status_code == 201, retry.get_json()
+
+
+def test_a_genuinely_missing_object_is_still_a_409(client, stub_r2, monkeypatch):
+    """The other half of the split: a 404 from R2 means the client never
+    finished its PUT, and that answer must not change."""
+    from app.services import r2_storage
+
+    registered = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "band2@example.com",
+            "password": "correct-horse-battery",
+            "display_name": "Band Two",
+        },
+    )
+    headers = {"Authorization": f"Bearer {registered.get_json()['data']['access_token']}"}
+    user_id = registered.get_json()["data"]["user"]["id"]
+
+    ticket = client.post(
+        "/api/v1/uploads",
+        json={
+            "purpose": "user_avatar",
+            "target_id": user_id,
+            "filename": "me.jpg",
+            "content_type": "image/jpeg",
+            "size_bytes": 2048,
+        },
+        headers=headers,
+    )
+    upload_id = ticket.get_json()["data"]["upload_id"]
+    # Deliberately never "uploaded" — head_object returns None.
+    monkeypatch.setattr(
+        r2_storage.R2Storage, "head_object", staticmethod(lambda k: None)
+    )
+
+    response = client.post(f"/api/v1/uploads/{upload_id}/complete", json={}, headers=headers)
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "UPLOAD_NOT_FOUND"

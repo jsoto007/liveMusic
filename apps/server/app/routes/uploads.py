@@ -43,6 +43,7 @@ from ..services.r2_storage import (
     AUDIO_CONTENT_TYPES,
     IMAGE_CONTENT_TYPES,
     R2Storage,
+    StorageUnavailable,
 )
 from .response import error, ok
 from .serializers import (
@@ -322,7 +323,21 @@ def complete_upload(upload_id):
     if err:
         return err
 
-    head = R2Storage.head_object(ticket.object_key)
+    try:
+        head = R2Storage.head_object(ticket.object_key)
+    except StorageUnavailable:
+        # Our problem, not the caller's: the bucket could not be asked. Leave
+        # the claim uncommitted so the ticket stays PENDING and the same
+        # upload can be completed once storage is back — telling someone to
+        # upload the file again would be a lie, and burning their ticket on
+        # our outage would make the retry fail too.
+        db.session.rollback()
+        return error(
+            "STORAGE_UNAVAILABLE",
+            "Storage is not answering right now. Your file is fine — try "
+            "finishing the upload again in a minute.",
+            status=503,
+        )
     if head is None:
         return error(
             "UPLOAD_NOT_FOUND",

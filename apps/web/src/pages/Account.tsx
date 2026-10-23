@@ -7,7 +7,7 @@
  * implementation, so the two cannot drift apart again.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Plus, X } from "lucide-react";
 import {
@@ -123,7 +123,116 @@ export function AccountPage() {
       <button type="button" className="btn btn-secondary btn-block" onClick={() => void signOut()}>
         Sign out
       </button>
+
+      <Rule />
+      <SectionHead title="The small print" />
+      <p className="form-note" style={{ marginTop: "var(--space-2)" }}>
+        <Link to="/terms">Terms of use</Link>
+        {"  ·  "}
+        <Link to="/privacy">Privacy policy</Link>
+      </p>
+
+      <CloseAccountPanel />
     </div>
+  );
+}
+
+/**
+ * Closing the account, for good.
+ *
+ * App Store Review Guideline 5.1.1(v) requires that an account which can be
+ * created in the app can be deleted in the app — not emailed about, not
+ * deactivated. The web is the other half of that: the same account, the same
+ * route, so someone who joined on a phone can close it from a laptop.
+ *
+ * The password is asked for because this is the most destructive thing a
+ * session can do, and what is destroyed is spelled out before the button
+ * appears rather than in a sentence nobody reads afterwards.
+ */
+function CloseAccountPanel() {
+  const { signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (formEvent: FormEvent) => {
+    formEvent.preventDefault();
+    const sure = window.confirm(
+      "Delete your account?\n\nThis cannot be undone. Your profile, your list, " +
+        "your bands and everything you have written go with it.",
+    );
+    if (!sure) return;
+
+    setBusy(true);
+    setError(null);
+    const result = await api.post("/api/v1/me/delete", { password });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    // The account is gone; drop the local session rather than sitting here
+    // holding a token for a user that no longer exists.
+    await signOut();
+  };
+
+  return (
+    <>
+      <Rule />
+      {!open ? (
+        <button
+          type="button"
+          className="btn btn-ghost btn-block"
+          onClick={() => setOpen(true)}
+        >
+          Delete your account
+        </button>
+      ) : (
+        <form className="stack" onSubmit={(e) => void submit(e)}>
+          <SectionHead title="Delete your account" />
+          <p className="prose">
+            This is permanent. Your profile, your list, the bands you run and
+            everything you have written are deleted. Shows you posted that have
+            not happened yet are cancelled so nobody turns up to them; past
+            listings stay in the record with your name off them.
+          </p>
+          {error ? <Notice tone="error">{error}</Notice> : null}
+          <div className="field">
+            <label htmlFor="delete-password">Your password</label>
+            <input
+              id="delete-password"
+              className="input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </div>
+          <div className="two-column">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                setOpen(false);
+                setPassword("");
+                setError(null);
+              }}
+            >
+              Keep my account
+            </button>
+            <button
+              type="submit"
+              className="btn btn-ghost"
+              disabled={busy || !password}
+            >
+              {busy ? "Deleting…" : "Delete for good"}
+            </button>
+          </div>
+        </form>
+      )}
+    </>
   );
 }
 

@@ -14,6 +14,7 @@ import {
   AGE_OPTIONS,
   GENRES,
   inferContentType,
+  isOpenableTicketUrl,
   uploadDirect,
   type AgeRestriction,
   type EventListing,
@@ -59,6 +60,7 @@ export function PostShowPage() {
   const [ages, setAges] = useState<AgeRestriction>("21_plus");
   const [genre, setGenre] = useState<Genre>("rock_punk");
   const [note, setNote] = useState("");
+  const [ticketUrl, setTicketUrl] = useState("");
   const [poster, setPoster] = useState<File | null>(null);
   const [artistId, setArtistId] = useState(artists[0]?.id ?? "");
   // Set when a suggestion is chosen. Sending the coordinates we already have
@@ -146,6 +148,16 @@ export function PostShowPage() {
       return;
     }
 
+    // Checked here so a typo comes back beside the field, rather than as a
+    // server error after half the listing has been made.
+    const ticket = ticketUrl.trim();
+    if (ticket && !isOpenableTicketUrl(ticket)) {
+      setError(
+        "The ticket link needs to be a full web address, starting http:// or https://.",
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const created = await api.post<{ event: EventListing }>("/api/v1/events", {
@@ -167,6 +179,7 @@ export function PostShowPage() {
         price_cents: priceCents,
         age_restriction: ages,
         short_line: note.trim() || undefined,
+        ticket_url: ticket || undefined,
         publish: true,
       });
 
@@ -381,6 +394,26 @@ export function PostShowPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="field">
+            <label htmlFor="ticket-url">Ticket link</label>
+            <input
+              id="ticket-url"
+              className="input"
+              type="url"
+              value={ticketUrl}
+              onChange={(e) => setTicketUrl(e.target.value)}
+              placeholder="https://dice.fm/event/…"
+              maxLength={500}
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <p className="form-note">
+              Where tickets are actually sold — the venue&rsquo;s box office, or
+              your ticketing page. Readers are sent straight there; nothing is
+              sold here.
+            </p>
           </div>
 
           <div className="field">

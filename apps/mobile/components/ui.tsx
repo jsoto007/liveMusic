@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,7 +22,16 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { colors, fonts, ink, radius, space, tabular, type } from "../lib/theme";
+import {
+  colors,
+  fonts,
+  ink,
+  maxContentWidth,
+  radius,
+  space,
+  tabular,
+  type,
+} from "../lib/theme";
 
 /**
  * The page frame for a tab screen.
@@ -34,9 +44,17 @@ import { colors, fonts, ink, radius, space, tabular, type } from "../lib/theme";
 export function Screen({
   children,
   scroll = true,
+  onRefresh,
+  refreshing = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
+  /** Pull down to fetch again. Pass this on any page whose content comes from
+   * the network: without it, a page whose first load failed is a dead end —
+   * the reader gets one error line and no way to try again short of killing
+   * the app, which is exactly what a spotty connection produces. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   const insets = useSafeAreaInsets();
   const padding = { paddingTop: insets.top + space.s4 };
@@ -50,6 +68,16 @@ export function Screen({
       style={screenStyles.root}
       contentContainerStyle={[screenStyles.content, padding]}
       keyboardShouldPersistTaps="handled"
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.accent}
+            colors={[colors.accent]}
+          />
+        ) : undefined
+      }
     >
       {children}
     </ScrollView>
@@ -58,7 +86,15 @@ export function Screen({
 
 const screenStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { paddingHorizontal: 20, paddingBottom: space.s8 },
+  content: {
+    paddingHorizontal: 20,
+    paddingBottom: space.s8,
+    // The measure. On a phone `maxWidth` is never reached and this is inert;
+    // on an iPad it stops body copy running the full width of the display.
+    width: "100%",
+    maxWidth: maxContentWidth,
+    alignSelf: "center",
+  },
 });
 
 export function Heading({

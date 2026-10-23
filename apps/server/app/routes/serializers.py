@@ -570,7 +570,7 @@ def serialize_notification(notification) -> dict:
 
 
 def serialize_report(report, *, comment=None, review=None, reported_user=None,
-                     reporter=None) -> dict:
+                     event=None, reporter=None) -> dict:
     subject_type = (
         "comment"
         if report.comment_id
@@ -578,6 +578,8 @@ def serialize_report(report, *, comment=None, review=None, reported_user=None,
         if report.review_id
         else "user"
         if report.reported_user_id
+        else "event"
+        if report.event_id
         # Every pointer nulled — the content was deleted out from under the
         # report (author delete, or an earlier resolution).
         else "removed"
@@ -599,6 +601,8 @@ def serialize_report(report, *, comment=None, review=None, reported_user=None,
         payload["review"] = serialize_review(review)
     if reported_user is not None:
         payload["reported_user"] = user_card(reported_user)
+    if event is not None:
+        payload["event"] = serialize_event(event, detail=True)
     return payload
 
 
